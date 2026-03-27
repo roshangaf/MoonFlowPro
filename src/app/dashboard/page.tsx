@@ -37,37 +37,36 @@ export default function DashboardPage() {
   }, [db, user?.uid])
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
-  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
-  const companyId = profile?.companyId
+  
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const companyId = profile?.companyId
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    if (isSuperAdmin) return collection(db, "products")
+    // Filter by companyId for everyone to maintain isolation
     if (!companyId) return null
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin, isApproved])
+  }, [db, user, companyId, isApproved])
 
   const customersQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    if (isSuperAdmin) return collection(db, "customers")
     if (!companyId) return null
     return query(collection(db, "customers"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin, isApproved])
+  }, [db, user, companyId, isApproved])
 
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    if (isSuperAdmin) return collection(db, "sales")
     if (!companyId) return null
     return query(collection(db, "sales"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin, isApproved])
+  }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
   const { data: sales, isLoading: salesLoading } = useCollection(salesQuery)
 
   const activeInventory = (products || []).filter(p => p.lifecycleStatus !== 'Sold').length
-  const totalSales = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+  const totalSalesValue = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
   const totalCustomers = (customers || []).length
   const recentSales = [...(sales || [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
 
@@ -87,7 +86,7 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Overview Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, here is what is happening with your business today.</p>
+        <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Here is what is happening with {profile?.companyName || "your company"} today.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -112,11 +111,11 @@ export default function DashboardPage() {
               <div className="p-2 bg-accent/5 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-accent" />
               </div>
-              <Badge variant="secondary" className="font-medium">Total</Badge>
+              <Badge variant="secondary" className="font-medium">Company Total</Badge>
             </div>
             <div className="mt-4">
               <p className="text-sm font-medium text-muted-foreground">Sales Volume</p>
-              <h3 className="text-2xl font-bold text-foreground">${totalSales.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-foreground">${totalSalesValue.toLocaleString()}</h3>
             </div>
           </CardContent>
         </Card>
@@ -153,11 +152,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-7">
-        <Card className="lg:col-span-4 border-none shadow-sm">
+        <Card className="lg:col-span-4 border-none shadow-sm bg-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Recent Sales Activity</CardTitle>
-              <CardDescription>View your latest transactions.</CardDescription>
+              <CardTitle className="text-foreground">Recent Sales Activity</CardTitle>
+              <CardDescription>View latest transactions for {profile?.companyName}.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/sales">View All <ChevronRight className="ml-1 h-4 w-4" /></Link>
@@ -172,7 +171,7 @@ export default function DashboardPage() {
                       #{sale.id.slice(0, 3)}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Sale Transaction</p>
+                      <p className="text-sm font-semibold text-foreground">Sale Transaction</p>
                       <p className="text-xs text-muted-foreground">{new Date(sale.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -182,28 +181,28 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {recentSales.length === 0 && <p className="text-center text-muted-foreground text-sm">No recent sales found.</p>}
+              {recentSales.length === 0 && <p className="text-center text-muted-foreground text-sm py-10">No recent sales records found.</p>}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3 border-none shadow-sm">
+        <Card className="lg:col-span-3 border-none shadow-sm bg-card">
           <CardHeader>
-            <CardTitle>Inventory Status</CardTitle>
-            <CardDescription>Current lifecycle distribution.</CardDescription>
+            <CardTitle className="text-foreground">Inventory Distribution</CardTitle>
+            <CardDescription>Current stock lifecycle breakdown.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Active Stock</span>
-                <span className="text-muted-foreground">{activeInventory}</span>
+                <span className="font-medium text-foreground">Active Stock</span>
+                <span className="text-muted-foreground">{activeInventory} items</span>
               </div>
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-accent" style={{ width: `${(activeInventory / (products?.length || 1)) * 100}%` }}></div>
+                <div className="h-full bg-accent" style={{ width: `${(activeInventory / Math.max(products?.length || 1, 1)) * 100}%` }}></div>
               </div>
             </div>
             <div className="pt-4 border-t">
-              <Button className="w-full bg-primary hover:bg-primary/90" asChild>
+              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
                 <Link href="/inventory" className="flex items-center justify-center gap-2">
                   Manage Inventory <ArrowUpRight className="h-4 w-4" />
                 </Link>

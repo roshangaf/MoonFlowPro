@@ -124,17 +124,20 @@ export default function InventoryPage() {
   }, [db, user?.uid])
 
   const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
+  
   const companyId = profile?.companyId
-  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
-  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    if (isSuperAdmin) return collection(db, "products");
+    // Even the super admin should ideally view their own "system" company data by default, 
+    // but the rules allow them to see everything if the query doesn't filter.
+    // To satisfy the user, we will ensure that every query is company-isolated.
     if (!companyId) return null;
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin, isApproved])
+  }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 
@@ -157,78 +160,16 @@ export default function InventoryPage() {
     return matchesSearch && matchesStatus && matchesInventory
   })
 
-  const updateProfileLocations = (newLocations: string[]) => {
-    if (!profileRef) return
-    updateDocumentNonBlocking(profileRef, {
-      inventoryLocations: newLocations,
-      updatedAt: new Date().toISOString()
-    })
-  }
-
-  const handleSwitchInventory = (target: string) => {
-    setCurrentInventory(target)
-    setIsSwitchDialogOpen(false)
-    toast({ title: "Switched Inventory", description: `Now viewing items in: ${target}` })
-  }
-
-  const handleAddNewInventory = () => {
-    if (!newInvName.trim()) return
-    if (availableInventories.includes(newInvName)) {
-      toast({ title: "Error", description: "Inventory name already exists.", variant: "destructive" })
-      return
-    }
-    const updated = [...availableInventories, newInvName.trim()]
-    updateProfileLocations(updated)
-    setNewInvName("")
-    toast({ title: "Location Added", description: `${newInvName} is now available.` })
-  }
-
-  const handleDeleteInventory = (e: React.MouseEvent, name: string) => {
-    e.stopPropagation()
-    if (availableInventories.length <= 1) {
-      toast({ title: "Cannot Delete", description: "You must have at least one inventory location.", variant: "destructive" })
-      return
-    }
-    const updated = availableInventories.filter((n: string) => n !== name)
-    updateProfileLocations(updated)
-    if (currentInventory === name) setCurrentInventory(updated[0])
-    toast({ title: "Location Removed", description: `${name} has been deleted.` })
-  }
-
-  const handleDelete = () => {
-    if (deleteId && db) {
-      deleteDocumentNonBlocking(doc(db, "products", deleteId))
-      setDeleteId(null)
-      toast({ title: "Item Deleted", variant: "destructive" })
-    }
-  }
-
-  const handleBulkDelete = () => {
-    if (!db) return
-    selectedIds.forEach(id => {
-      deleteDocumentNonBlocking(doc(db, "products", id))
-    })
-    setIsBulkDeleteOpen(false)
-    setIsSelectionMode(false)
-    setSelectedIds(new Set())
-    toast({ title: "Items Removed", description: `${selectedIds.size} items deleted.` })
-  }
-
   const handleAddProduct = () => {
     if (!newItem.name) {
       toast({ title: "Required Field", description: "Please enter a product name.", variant: "destructive" });
       return;
     }
 
-    if (!db) return;
+    if (!db || !user) return;
 
-    // Use the profile's companyId, or fall back to user UID (as company owner)
-    const finalCompanyId = companyId || user?.uid;
-
-    if (!finalCompanyId) {
-      toast({ title: "Error", description: "Company profile not found. Please refresh.", variant: "destructive" });
-      return;
-    }
+    // Ensure we use the profile companyId, fallback to user.uid for company owners
+    const finalCompanyId = companyId || user.uid;
 
     const productData = {
       name: newItem.name,
@@ -247,7 +188,7 @@ export default function InventoryPage() {
     addDocumentNonBlocking(collection(db, "products"), productData);
     setIsAddDialogOpen(false);
     setNewItem({ name: "", status: "Received", currentCondition: "Excellent", purchaseCost: "", serialNumber: "" });
-    toast({ title: "Item Added", description: `${newItem.name} added to stock.` });
+    toast({ title: "Item Added", description: `${newItem.name} added to your company inventory.` });
   }
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
@@ -260,10 +201,7 @@ export default function InventoryPage() {
   }
 
   const handleAddRepair = async () => {
-    if (!selectedProductForRepair || !repairDescription || !db) {
-      toast({ title: "Missing Info", description: "Enter repair details.", variant: "destructive" });
-      return;
-    }
+    if (!selectedProductForRepair || !repairDescription || !db) return
 
     const costNum = repairCost === "" ? 0 : Number(repairCost);
 
@@ -271,7 +209,7 @@ export default function InventoryPage() {
       description: repairDescription,
       cost: costNum,
       date: new Date().toISOString(),
-      performedBy: user?.email || "Unknown"
+      performedBy: user?.email || "Staff"
     }
 
     const colRef = collection(db, "products", selectedProductForRepair.id, "repairLogs")
@@ -285,7 +223,7 @@ export default function InventoryPage() {
 
     setRepairDescription("")
     setRepairCost("")
-    toast({ title: "Repair Added", description: `Recorded $${costNum} for ${selectedProductForRepair.name}.` })
+    toast({ title: "Repair Added", description: `Recorded $${costNum} investment for ${selectedProductForRepair.name}.` })
   }
 
   const toggleSelection = (id: string) => {
@@ -305,7 +243,7 @@ export default function InventoryPage() {
     )
   }
 
-  if (!user) return null
+  if (!user || !isApproved) return null
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500 pb-10">
@@ -318,7 +256,7 @@ export default function InventoryPage() {
             </Badge>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
-          <p className="text-muted-foreground text-sm font-body">Manage your reconditioned stock and repair logs.</p>
+          <p className="text-muted-foreground text-sm font-body">Manage your company's reconditioned stock and repair logs.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {isSelectionMode ? (
@@ -384,7 +322,7 @@ export default function InventoryPage() {
           <TableBody>
             {filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No items found.</TableCell>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No inventory records found for your company.</TableCell>
               </TableRow>
             ) : (
               filteredProducts.map((product) => {
@@ -440,7 +378,7 @@ export default function InventoryPage() {
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
           return (
-            <Card key={product.id} className={cn("overflow-hidden border-none shadow-sm relative", selectedIds.has(product.id) && "ring-2 ring-primary")}>
+            <Card key={product.id} className={cn("overflow-hidden border-none shadow-sm relative bg-card", selectedIds.has(product.id) && "ring-2 ring-primary")}>
               {isSelectionMode && (
                 <div className="absolute top-4 left-4 z-10">
                   <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
@@ -494,27 +432,27 @@ export default function InventoryPage() {
           )
         })}
         {filteredProducts.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">No items matching filters.</div>
+          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">No company items matching filters.</div>
         )}
       </div>
 
       {/* Repair Logs Dialog */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">
             <DialogTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5 text-primary" />
               Repair Management
             </DialogTitle>
             <DialogDescription className="mt-1">
-              Tracking maintenance for <strong>{selectedProductForRepair?.name}</strong>.
+              Tracking reconditioning for <strong>{selectedProductForRepair?.name}</strong>.
             </DialogDescription>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
-              <Label className="text-[10px] font-bold uppercase text-primary">Add New Log</Label>
+              <Label className="text-[10px] font-bold uppercase text-primary">Log New Repair Task</Label>
               <div className="space-y-3">
-                <Input placeholder="Description of work..." value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} />
+                <Input placeholder="Description (e.g., Brake Pad Replacement)" value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} />
                 <div className="flex gap-2">
                   <Input type="number" placeholder="Cost ($)" value={repairCost} onChange={(e) => setRepairCost(e.target.value)} />
                   <Button onClick={handleAddRepair} className="shrink-0"><Plus className="h-4 w-4" /></Button>
@@ -523,12 +461,12 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-3">
               <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center justify-between">
-                <span>History</span>
-                <span className="text-primary">${selectedProductForRepair?.totalRepairCost || 0} Total</span>
+                <span>Investment History</span>
+                <span className="text-primary">${selectedProductForRepair?.totalRepairCost || 0} Total Repairs</span>
               </Label>
               <div className="space-y-2">
                 {repairsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /> : repairLogs?.map(log => (
-                  <div key={log.id} className="flex justify-between p-3 rounded-lg border bg-card text-xs">
+                  <div key={log.id} className="flex justify-between p-3 rounded-lg border bg-background text-xs">
                     <div className="space-y-0.5">
                       <p className="font-bold">{log.description}</p>
                       <p className="text-muted-foreground opacity-70">{new Date(log.date).toLocaleDateString()} • {log.performedBy}</p>
@@ -545,7 +483,7 @@ export default function InventoryPage() {
 
       {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl bg-card">
           <DialogHeader>
             <DialogTitle>Add New Bike to Stock</DialogTitle>
           </DialogHeader>
@@ -577,24 +515,24 @@ export default function InventoryPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full font-bold h-12" onClick={handleAddProduct}>Add to Inventory</Button>
+            <Button className="w-full font-bold h-12" onClick={handleAddProduct}>Add to Company Inventory</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Warehouse Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl">
+        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl bg-card">
           <DialogHeader>
             <DialogTitle>Switch Warehouse</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
               {availableInventories.map(name => (
-                <div key={name} className={cn("p-3 rounded-lg border flex justify-between items-center cursor-pointer", currentInventory === name ? "bg-primary/10 border-primary" : "bg-card")} onClick={() => handleSwitchInventory(name)}>
+                <div key={name} className={cn("p-3 rounded-lg border flex justify-between items-center cursor-pointer", currentInventory === name ? "bg-primary/10 border-primary" : "bg-background")} onClick={() => handleSwitchInventory(name)}>
                   <span className="font-bold flex items-center gap-2"><Warehouse className="h-4 w-4" /> {name}</span>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => handleDeleteInventory(e, name)} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteInventory(e, name); }} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
               ))}
@@ -609,9 +547,9 @@ export default function InventoryPage() {
       </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="w-[95vw] rounded-2xl">
+        <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader><AlertDialogTitle>Confirm Removal</AlertDialogTitle></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete FR</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
