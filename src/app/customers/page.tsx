@@ -66,9 +66,10 @@ export default function CustomersPage() {
   }, [db, user?.uid])
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
-  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
-  const companyId = profile?.companyId
+  
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const companyId = profile?.companyId
 
   const [searchQuery, setSearchQuery] = useState("")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
@@ -84,9 +85,8 @@ export default function CustomersPage() {
   })
 
   const customersQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "customers")
-    if (!companyId) return null
     return query(collection(db, "customers"), where("companyId", "==", companyId))
   }, [db, user, companyId, isSuperAdmin, isApproved])
 
@@ -157,7 +157,7 @@ export default function CustomersPage() {
     })
   }
 
-  const isLoading = isUserLoading || isProfileLoading || customersLoading
+  const isLoading = isUserLoading || isProfileLoading || (isApproved && customersLoading)
 
   if (isLoading) {
     return (
@@ -302,7 +302,6 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Add New Customer Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -362,7 +361,6 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Delete Confirmation */}
       <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

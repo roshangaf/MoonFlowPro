@@ -40,7 +40,7 @@ export default function DashboardPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId || (isSuperAdmin ? "system" : (profile?.id || user?.uid))
+  const companyId = profile?.companyId
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
@@ -71,7 +71,7 @@ export default function DashboardPage() {
   const totalSalesValue = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
   const totalCustomers = (customers || []).length
 
-  const isLoading = isUserLoading || isProfileLoading || productsLoading || customersLoading || salesLoading
+  const isLoading = isUserLoading || isProfileLoading || (isApproved && (productsLoading || customersLoading || salesLoading))
 
   if (isLoading) {
     return (

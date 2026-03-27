@@ -128,15 +128,12 @@ export default function InventoryPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  
-  // Resilient companyId derivation
-  const companyId = profile?.companyId || (isSuperAdmin ? "system" : (profile?.id || user?.uid))
+  const companyId = profile?.companyId
   const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
   const productsQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "products")
-    if (!companyId) return null;
     return query(collection(db, "products"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved, isSuperAdmin])
 
@@ -217,7 +214,7 @@ export default function InventoryPage() {
     }
 
     const colRef = collection(db, "products", selectedProductForRepair.id, "repairLogs")
-    await addDocumentNonBlocking(colRef, logData)
+    addDocumentNonBlocking(colRef, logData)
 
     const newTotalRepairCost = (selectedProductForRepair.totalRepairCost || 0) + costNum
     updateDocumentNonBlocking(doc(db, "products", selectedProductForRepair.id), {
@@ -277,7 +274,7 @@ export default function InventoryPage() {
     setSelectedIds(newSelected)
   }
 
-  const isLoading = isUserLoading || productsLoading || profileLoading
+  const isLoading = isUserLoading || profileLoading || (isApproved && productsLoading)
 
   if (isLoading) {
     return (
@@ -350,7 +347,6 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      {/* Desktop Table View */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -417,7 +413,6 @@ export default function InventoryPage() {
         </Table>
       </div>
 
-      {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
@@ -480,7 +475,6 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Repair Logs Dialog */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">
@@ -525,7 +519,6 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
           <div className="p-6 bg-muted/30 border-b">
@@ -566,7 +559,6 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Warehouse Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
         <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
           <div className="p-6 bg-muted/30 border-b">
@@ -593,7 +585,6 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Delete Confirm */}
       <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>
@@ -607,7 +598,6 @@ export default function InventoryPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Individual Delete Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>

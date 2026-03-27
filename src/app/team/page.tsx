@@ -53,12 +53,12 @@ export default function CompanyManagementPage() {
   }, [db, currentUser?.uid])
 
   const { data: profile } = useDoc(currentUserProfileRef)
+  
   const isSuperAdmin = currentUser?.email === 'roshanismean@gmail.com'
   const companyId = profile?.companyId
 
   const usersQuery = useMemoFirebase(() => {
     if (!db || !currentUser) return null
-    // The super admin MUST see all users in the system to manage approvals regardless of their own companyId
     if (isSuperAdmin) return collection(db, "businessUsers");
     if (!companyId) return null;
     return query(collection(db, "businessUsers"), where("companyId", "==", companyId))
@@ -94,7 +94,6 @@ export default function CompanyManagementPage() {
 
   const isLoading = isUserLoading || usersLoading
   
-  // Pending users are those from the super admin's global list OR the current admin's company
   const pendingUsers = (users || []).filter(u => !u.approved && u.email !== 'roshanismean@gmail.com')
   const activeUsers = (users || []).filter(u => u.approved || u.email === 'roshanismean@gmail.com')
 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -55,6 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
@@ -80,15 +82,15 @@ export default function SalesPage() {
   }, [db, user?.uid])
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
-  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
-  const companyId = profile?.companyId
+  
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const companyId = profile?.companyId
 
   // Fetch Sales
   const salesQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "sales")
-    if (!companyId) return null
     return query(collection(db, "sales"), where("companyId", "==", companyId))
   }, [db, user, companyId, isSuperAdmin, isApproved])
 
@@ -185,7 +187,7 @@ export default function SalesPage() {
   const totalRevenue = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
   const avgSale = (sales || []).length > 0 ? totalRevenue / (sales || []).length : 0
 
-  const isLoading = isUserLoading || isProfileLoading || salesLoading
+  const isLoading = isUserLoading || isProfileLoading || (isApproved && salesLoading)
 
   if (isLoading) {
     return (
@@ -294,7 +296,6 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      {/* Desktop View */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -378,7 +379,6 @@ export default function SalesPage() {
         </Table>
       </div>
 
-      {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {(sales || []).map((sale) => (
           <Card key={sale.id} className={cn("border-none shadow-sm relative overflow-hidden group bg-card", selectedIds.has(sale.id) && "ring-2 ring-primary")}>
@@ -436,7 +436,6 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* Record New Sale Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
           <div className="p-6 bg-muted/30 border-b">
@@ -491,7 +490,6 @@ export default function SalesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Individual Delete Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>
@@ -505,7 +503,6 @@ export default function SalesPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bulk Delete Confirmation */}
       <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>
