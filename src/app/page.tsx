@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeftRight, Lock, Mail, Loader2, UserPlus, LogIn, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,7 +14,7 @@ import { initiateEmailSignIn, initiateEmailSignUp } from "@/firebase/non-blockin
 import { doc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
-export default function LoginPage() {
+function LoginPageContent() {
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode')
   
@@ -50,7 +51,6 @@ export default function LoginPage() {
       initiateEmailSignUp(auth, email, password)
         .then((cred) => {
           if (db && cred.user) {
-            // Check if this is the super admin email
             const isSuperAdmin = email === 'roshanismean@gmail.com'
             
             setDocumentNonBlocking(doc(db, "businessUsers", cred.user.uid), {
@@ -58,13 +58,12 @@ export default function LoginPage() {
               firstName,
               lastName,
               email,
-              approved: isSuperAdmin, // Auto-approve super admin
+              approved: isSuperAdmin,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             }, { merge: true })
             
             if (isSuperAdmin) {
-              // Also add to admins collection for rules consistency
               setDocumentNonBlocking(doc(db, "admins", cred.user.uid), {
                 createdAt: new Date().toISOString()
               }, { merge: true })
@@ -219,5 +218,17 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   )
 }
