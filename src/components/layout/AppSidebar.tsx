@@ -1,3 +1,4 @@
+
 "use client"
 
 import { 
@@ -68,8 +69,8 @@ export function AppSidebar() {
             <ArrowLeftRight className="h-6 w-6" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="font-bold text-lg leading-tight tracking-tight">MoonFlow</span>
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Business Pro</span>
+            <span className="font-bold text-lg leading-tight tracking-tight">MoonFlowPro</span>
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Business Intelligence</span>
           </div>
         </div>
       </SidebarHeader>

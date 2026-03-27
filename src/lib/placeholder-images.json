@@ -5,6 +5,24 @@
       "description": "Professional business overview illustration",
       "imageUrl": "https://picsum.photos/seed/dash/1200/600",
       "imageHint": "business dashboard"
+    },
+    {
+      "id": "inventory-placeholder",
+      "description": "Inventory management visual",
+      "imageUrl": "https://picsum.photos/seed/inv/800/400",
+      "imageHint": "warehouse logistics"
+    },
+    {
+      "id": "sales-placeholder",
+      "description": "Sales growth chart visual",
+      "imageUrl": "https://picsum.photos/seed/sales/800/400",
+      "imageHint": "sales success"
+    },
+    {
+      "id": "team-placeholder",
+      "description": "Team collaboration visual",
+      "imageUrl": "https://picsum.photos/seed/team/800/400",
+      "imageHint": "team office"
     }
   ]
 }

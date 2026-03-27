@@ -25,7 +25,6 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  // Theme initialization
                   const theme = localStorage.getItem('theme') || 'system';
                   const darkMode = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                   if (darkMode) {
@@ -33,8 +32,6 @@ export default function RootLayout({
                   } else {
                     document.documentElement.classList.remove('dark');
                   }
-
-                  // High Contrast initialization
                   const highContrast = localStorage.getItem('high-contrast') === 'true';
                   if (highContrast) {
                     document.documentElement.classList.add('high-contrast');
