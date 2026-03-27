@@ -72,12 +72,12 @@ type ProductStatus = 'Received' | 'In Repair' | 'Tested' | 'Listed' | 'Sold';
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Received': return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800';
-    case 'In Repair': return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900';
-    case 'Tested': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900';
-    case 'Listed': return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900';
-    case 'Sold': return 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-foreground';
-    default: return 'bg-gray-100 dark:bg-gray-800';
+    case 'Received': return 'bg-slate-100 text-slate-700 border-slate-200';
+    case 'In Repair': return 'bg-orange-100 text-orange-700 border-orange-200';
+    case 'Tested': return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'Listed': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'Sold': return 'bg-primary/10 text-primary border-primary/20';
+    default: return 'bg-gray-100';
   }
 }
 
@@ -129,7 +129,6 @@ export default function InventoryPage() {
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
   const companyId = profile?.companyId
-  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
@@ -167,7 +166,7 @@ export default function InventoryPage() {
     if (!db || !user || !companyId) {
       toast({ 
         title: "Initializing...", 
-        description: "Your business profile is still loading. Please try again in a moment.", 
+        description: "Your business profile is still loading. Please try again.", 
         variant: "destructive" 
       });
       return;
@@ -252,7 +251,8 @@ export default function InventoryPage() {
 
   const handleAddNewInventory = () => {
     if (!newInvName.trim() || !profileRef) return
-    const updatedLocations = [...availableInventories, newInvName.trim()]
+    const currentLocations = profile?.inventoryLocations || DEFAULT_LOCATIONS
+    const updatedLocations = [...currentLocations, newInvName.trim()]
     updateDocumentNonBlocking(profileRef, { inventoryLocations: updatedLocations })
     setNewInvName("")
     toast({ title: "Location Added", description: `${newInvName} is now available.` })
@@ -260,8 +260,9 @@ export default function InventoryPage() {
 
   const handleDeleteInventory = (e: React.MouseEvent, name: string) => {
     e.stopPropagation()
-    if (!profileRef || availableInventories.length <= 1) return
-    const updatedLocations = availableInventories.filter((l: string) => l !== name)
+    const currentLocations = profile?.inventoryLocations || DEFAULT_LOCATIONS
+    if (!profileRef || currentLocations.length <= 1) return
+    const updatedLocations = currentLocations.filter((l: string) => l !== name)
     updateDocumentNonBlocking(profileRef, { inventoryLocations: updatedLocations })
     if (currentInventory === name) setCurrentInventory(updatedLocations[0])
     toast({ title: "Location Removed", variant: "destructive" })
@@ -285,6 +286,8 @@ export default function InventoryPage() {
   }
 
   if (!user || !isApproved) return null
+
+  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500 pb-20">
@@ -450,7 +453,6 @@ export default function InventoryPage() {
                   <div className="flex flex-col">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total Investment</span>
                     <span className="text-lg font-bold text-primary">${totalInvest.toLocaleString()}</span>
-                    {product.totalRepairCost > 0 && <span className="text-[9px] text-muted-foreground font-medium">Incl. ${product.totalRepairCost} Repairs</span>}
                   </div>
                   <div className="flex flex-col items-end text-right">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Condition</span>
@@ -471,7 +473,7 @@ export default function InventoryPage() {
           )
         })}
         {filteredProducts.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed font-medium">No company items found.</div>
+          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed font-medium">No items found.</div>
         )}
       </div>
 
@@ -578,7 +580,7 @@ export default function InventoryPage() {
             </div>
             <Separator />
             <div className="flex gap-2">
-              <Input placeholder="New Location Name..." value={newInvName} onChange={(e) => setNewInvName(e.target.value)} className="h-11 bg-background" />
+              <Input placeholder="New Location..." value={newInvName} onChange={(e) => setNewInvName(e.target.value)} className="h-11 bg-background" />
               <Button variant="secondary" onClick={handleAddNewInventory} className="h-11 px-4"><Plus className="h-5 w-5" /></Button>
             </div>
           </div>

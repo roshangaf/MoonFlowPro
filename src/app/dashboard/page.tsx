@@ -24,7 +24,6 @@ export default function DashboardPage() {
   const db = useFirestore()
   const { user, isUserLoading } = useUser()
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push("/")
@@ -43,23 +42,20 @@ export default function DashboardPage() {
   const companyId = profile?.companyId
 
   const productsQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "products")
-    if (!companyId) return null
     return query(collection(db, "products"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const customersQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "customers")
-    if (!companyId) return null
     return query(collection(db, "customers"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const salesQuery = useMemoFirebase(() => {
-    if (!db || !user || !isApproved) return null
+    if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "sales")
-    if (!companyId) return null
     return query(collection(db, "sales"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved, isSuperAdmin])
 
