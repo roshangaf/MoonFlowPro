@@ -132,9 +132,6 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    // Even the super admin should ideally view their own "system" company data by default, 
-    // but the rules allow them to see everything if the query doesn't filter.
-    // To satisfy the user, we will ensure that every query is company-isolated.
     if (!companyId) return null;
     return query(collection(db, "products"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved])
@@ -167,8 +164,6 @@ export default function InventoryPage() {
     }
 
     if (!db || !user) return;
-
-    // Ensure we use the profile companyId, fallback to user.uid for company owners
     const finalCompanyId = companyId || user.uid;
 
     const productData = {
@@ -202,7 +197,6 @@ export default function InventoryPage() {
 
   const handleAddRepair = async () => {
     if (!selectedProductForRepair || !repairDescription || !db) return
-
     const costNum = repairCost === "" ? 0 : Number(repairCost);
 
     const logData = {
@@ -224,6 +218,46 @@ export default function InventoryPage() {
     setRepairDescription("")
     setRepairCost("")
     toast({ title: "Repair Added", description: `Recorded $${costNum} investment for ${selectedProductForRepair.name}.` })
+  }
+
+  const handleDelete = () => {
+    if (!deleteId || !db) return
+    deleteDocumentNonBlocking(doc(db, "products", deleteId))
+    setDeleteId(null)
+    toast({ title: "Item Deleted", variant: "destructive" })
+  }
+
+  const handleBulkDelete = () => {
+    if (!db) return
+    selectedIds.forEach(id => {
+      deleteDocumentNonBlocking(doc(db, "products", id))
+    })
+    setSelectedIds(new Set())
+    setIsSelectionMode(false)
+    setIsBulkDeleteOpen(false)
+    toast({ title: "Items Deleted", variant: "destructive" })
+  }
+
+  const handleSwitchInventory = (name: string) => {
+    setCurrentInventory(name)
+    setIsSwitchDialogOpen(false)
+  }
+
+  const handleAddNewInventory = () => {
+    if (!newInvName.trim() || !profileRef) return
+    const updatedLocations = [...availableInventories, newInvName.trim()]
+    updateDocumentNonBlocking(profileRef, { inventoryLocations: updatedLocations })
+    setNewInvName("")
+    toast({ title: "Location Added", description: `${newInvName} is now available.` })
+  }
+
+  const handleDeleteInventory = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation()
+    if (!profileRef || availableInventories.length <= 1) return
+    const updatedLocations = availableInventories.filter((l: string) => l !== name)
+    updateDocumentNonBlocking(profileRef, { inventoryLocations: updatedLocations })
+    if (currentInventory === name) setCurrentInventory(updatedLocations[0])
+    toast({ title: "Location Removed", variant: "destructive" })
   }
 
   const toggleSelection = (id: string) => {
@@ -532,7 +566,7 @@ export default function InventoryPage() {
                 <div key={name} className={cn("p-3 rounded-lg border flex justify-between items-center cursor-pointer", currentInventory === name ? "bg-primary/10 border-primary" : "bg-background")} onClick={() => handleSwitchInventory(name)}>
                   <span className="font-bold flex items-center gap-2"><Warehouse className="h-4 w-4" /> {name}</span>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteInventory(e, name); }} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { handleDeleteInventory(e, name); }} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
               ))}
@@ -546,6 +580,21 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk Delete Confirm */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Items?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove these records from your company inventory.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive">Delete All</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Individual Delete Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader><AlertDialogTitle>Confirm Removal</AlertDialogTitle></AlertDialogHeader>
