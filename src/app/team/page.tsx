@@ -59,7 +59,9 @@ export default function CompanyManagementPage() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!db || !currentUser) return null
+    // Super Admin sees ALL users for approval purposes
     if (isSuperAdmin) return collection(db, "businessUsers");
+    // Regular admin only sees their company members
     if (!companyId) return null;
     return query(collection(db, "businessUsers"), where("companyId", "==", companyId))
   }, [db, currentUser, companyId, isSuperAdmin])

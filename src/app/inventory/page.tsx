@@ -350,6 +350,7 @@ export default function InventoryPage() {
         </Select>
       </div>
 
+      {/* TABLE VIEW (DESKTOP) */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -416,6 +417,7 @@ export default function InventoryPage() {
         </Table>
       </div>
 
+      {/* CARD VIEW (MOBILE) */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
@@ -477,6 +479,7 @@ export default function InventoryPage() {
         )}
       </div>
 
+      {/* DIALOGS */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">

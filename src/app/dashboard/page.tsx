@@ -80,7 +80,7 @@ export default function DashboardPage() {
   if (!user || !isApproved) return null
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Overview Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Here is what is happening with {profile?.companyName || "your company"} today.</p>
