@@ -44,7 +44,6 @@ export default function DashboardPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
-    // Filter by companyId for everyone to maintain isolation
     if (!companyId) return null
     return query(collection(db, "products"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved])

@@ -1,6 +1,8 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { 
   Sparkles, 
   Send, 
@@ -16,15 +18,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
-import { MOCK_CUSTOMERS, MOCK_PRODUCTS } from "@/app/lib/mock-data"
 import { generateAutomatedReminders, GenerateReminderOutput } from "@/ai/flows/generate-automated-reminders"
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
+import { collection, query, where, doc } from "firebase/firestore"
 
 export default function RemindersPage() {
+  const router = useRouter()
+  const db = useFirestore()
+  const { user, isUserLoading } = useUser()
+  const { toast } = useToast()
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isUserLoading, router])
+
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "businessUsers", user.uid)
+  }, [db, user?.uid])
+
+  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
+  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId
+
+  // Fetch Customers
+  const customersQuery = useMemoFirebase(() => {
+    if (!db || !companyId || !isApproved) return null
+    return query(collection(db, "customers"), where("companyId", "==", companyId))
+  }, [db, companyId, isApproved])
+
+  // Fetch Products
+  const productsQuery = useMemoFirebase(() => {
+    if (!db || !companyId || !isApproved) return null
+    return query(collection(db, "products"), where("companyId", "==", companyId))
+  }, [db, companyId, isApproved])
+
+  const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
+  const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
+
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
   const [selectedProductId, setSelectedProductId] = useState<string>("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [reminderResult, setReminderResult] = useState<GenerateReminderOutput | null>(null)
-  const { toast } = useToast()
 
   const handleGenerate = async () => {
     if (!selectedCustomerId || !selectedProductId) {
@@ -38,21 +76,21 @@ export default function RemindersPage() {
 
     setIsGenerating(true)
     try {
-      const customer = MOCK_CUSTOMERS.find(c => c.id === selectedCustomerId)
-      const product = MOCK_PRODUCTS.find(p => p.id === selectedProductId)
+      const customer = customers?.find(c => c.id === selectedCustomerId)
+      const product = products?.find(p => p.id === selectedProductId)
 
       if (!customer || !product) throw new Error("Data not found")
 
       const result = await generateAutomatedReminders({
         currentDate: new Date().toISOString().split('T')[0],
-        customerName: customer.name,
+        customerName: `${customer.firstName} ${customer.lastName}`,
         customerEmail: customer.email,
         productName: product.name,
         productId: product.id,
-        purchaseDate: product.purchaseDate,
-        warrantyEndDate: product.warrantyEndDate,
-        lastServiceDate: product.purchaseDate, // Using purchase as fallback
-        nextServiceDate: product.nextServiceDate,
+        purchaseDate: product.purchaseDate || new Date().toISOString().split('T')[0],
+        warrantyEndDate: product.warrantyEndDate || new Date(Date.now() + 31536000000).toISOString().split('T')[0], // +1 year
+        lastServiceDate: product.purchaseDate,
+        nextServiceDate: product.nextServiceDate || new Date(Date.now() + 15552000000).toISOString().split('T')[0], // +6 months
         paymentDueDate: product.paymentDueDate
       })
 
@@ -79,7 +117,17 @@ export default function RemindersPage() {
     }
   }
 
-  const customerProducts = MOCK_PRODUCTS.filter(p => !p.customerId || p.customerId === selectedCustomerId)
+  const isLoading = isUserLoading || isProfileLoading || customersLoading || productsLoading
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user || !isApproved) return null
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -105,8 +153,8 @@ export default function RemindersPage() {
                   <SelectValue placeholder="Search or select a customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MOCK_CUSTOMERS.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} ({c.email})</SelectItem>
+                  {(customers || []).map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -119,8 +167,8 @@ export default function RemindersPage() {
                   <SelectValue placeholder="Select a product record" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customerProducts.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name} [ID: {p.id}]</SelectItem>
+                  {(products || []).map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} [SN: {p.serialNumber}]</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -176,7 +224,7 @@ export default function RemindersPage() {
                </div>
             </Card>
           ) : (
-            <Card className="border-none shadow-sm overflow-hidden animate-in zoom-in-95 duration-300">
+            <Card className="border-none shadow-sm overflow-hidden animate-in zoom-in-95 duration-300 bg-card">
               <div className="bg-primary px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Mail className="h-5 w-5 text-primary-foreground/80" />
@@ -201,10 +249,7 @@ export default function RemindersPage() {
               </CardContent>
               <CardFooter className="bg-muted/50 border-t p-6 gap-3 flex-col sm:flex-row">
                 <Button variant="outline" className="w-full sm:flex-1 h-11 gap-2" onClick={handleCopy}>
-                  <
-
-
-Copy className="h-4 w-4" /> Copy Content
+                  <Copy className="h-4 w-4" /> Copy Content
                 </Button>
                 <Button className="w-full sm:flex-1 h-11 bg-accent hover:bg-accent/90 text-accent-foreground shadow-sm gap-2">
                   <Send className="h-4 w-4" /> Finalize & Send
