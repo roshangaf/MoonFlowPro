@@ -16,8 +16,8 @@ service cloud.firestore {
     // A user is "Staff" if they are signed in AND have been approved by an admin
     function isApprovedStaff() {
       return isSignedIn() && (
-        get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true
       );
     }
 
@@ -38,7 +38,7 @@ service cloud.firestore {
 
     match /businessUsers/{userId} {
       allow get: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && (query.limit <= 100)); // Super admin can list all, others limited or filtered in code
+      allow list: if isSuperAdmin() || (isApprovedStaff() && (query.limit <= 100));
       
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId && getUserData().role == 'admin');

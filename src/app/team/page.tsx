@@ -15,11 +15,10 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Check,
   Building2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -43,7 +42,7 @@ import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@
 import { collection, doc, query, where } from "firebase/firestore"
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
-export default function CompanyPage() {
+export default function CompanyManagementPage() {
   const router = useRouter()
   const { user: currentUser, isUserLoading } = useUser()
   const db = useFirestore()
@@ -51,14 +50,12 @@ export default function CompanyPage() {
 
   const [isInviteOpen, setIsInviteOpen] = useState(false)
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !currentUser) {
       router.push("/")
     }
   }, [currentUser, isUserLoading, router])
 
-  // Fetch Current User's Profile for Company Filtering
   const currentUserProfileRef = useMemoFirebase(() => {
     if (!db || !currentUser?.uid) return null
     return doc(db, "businessUsers", currentUser.uid)
@@ -66,11 +63,14 @@ export default function CompanyPage() {
 
   const { data: profile } = useDoc(currentUserProfileRef)
   const isSuperAdmin = currentUser?.email === 'roshanismean@gmail.com'
+  
+  // For super admin, we don't strictly need companyId to fetch ALL users
   const companyId = profile?.companyId
 
   const usersQuery = useMemoFirebase(() => {
-    if (!db || !currentUser || !companyId) return null
+    if (!db || !currentUser) return null
     if (isSuperAdmin) return collection(db, "businessUsers");
+    if (!companyId) return null;
     return query(collection(db, "businessUsers"), where("companyId", "==", companyId))
   }, [db, currentUser, companyId, isSuperAdmin])
 
@@ -89,35 +89,10 @@ export default function CompanyPage() {
 
   const isCurrentUserAdmin = isSuperAdmin || profile?.role === 'admin'
 
-  const handleToggleAdmin = (userId: string, currentStatus: boolean, userEmail?: string) => {
-    if (!db) return
-    if (!isCurrentUserAdmin) {
-      toast({ title: "Permission Denied", description: "Only administrators can change roles.", variant: "destructive" })
-      return
-    }
-    
-    if (userEmail === 'roshanismean@gmail.com') {
-      toast({ title: "Action Restricted", description: "Primary administrator roles cannot be modified.", variant: "destructive" })
-      return
-    }
-
-    const adminRef = doc(db, "admins", userId)
-    
-    if (currentStatus) {
-      deleteDocumentNonBlocking(adminRef)
-      updateDocumentNonBlocking(doc(db, "businessUsers", userId), { role: 'staff' })
-      toast({ title: "Role Updated", description: "Administrator privileges removed." })
-    } else {
-      setDocumentNonBlocking(adminRef, { createdAt: new Date().toISOString() }, { merge: true })
-      updateDocumentNonBlocking(doc(db, "businessUsers", userId), { role: 'admin' })
-      toast({ title: "Role Updated", description: "User promoted to Administrator." })
-    }
-  }
-
   const handleToggleApproval = (userId: string, currentApproved: boolean) => {
     if (!db) return
     if (!isCurrentUserAdmin) {
-      toast({ title: "Permission Denied", description: "Only administrators can approve users.", variant: "destructive" })
+      toast({ title: "Permission Denied", variant: "destructive" })
       return
     }
     updateDocumentNonBlocking(doc(db, "businessUsers", userId), {
@@ -125,26 +100,17 @@ export default function CompanyPage() {
       updatedAt: new Date().toISOString()
     })
     toast({ 
-      title: !currentApproved ? "User Approved" : "Access Revoked", 
-      description: !currentApproved ? "The user now has full system access." : "The user's access has been suspended.",
+      title: !currentApproved ? "Access Granted" : "Access Revoked", 
       variant: !currentApproved ? "default" : "destructive"
     })
   }
 
   const handleDeleteUser = (userId: string, userEmail?: string) => {
-    if (!db) return
-    if (!isCurrentUserAdmin) {
-      toast({ title: "Permission Denied", description: "Only administrators can remove staff.", variant: "destructive" })
-      return
-    }
-    if (userId === currentUser?.uid || userEmail === 'roshanismean@gmail.com') {
-      toast({ title: "Action Restricted", description: "You cannot delete this profile.", variant: "destructive" })
-      return
-    }
+    if (!db || !isCurrentUserAdmin) return
+    if (userId === currentUser?.uid || userEmail === 'roshanismean@gmail.com') return
+    
     deleteDocumentNonBlocking(doc(db, "businessUsers", userId))
-    if (checkIsAdmin(userId)) deleteDocumentNonBlocking(doc(db, "admins", userId))
-
-    toast({ title: "User Removed", description: "The staff profile has been deleted.", variant: "destructive" })
+    toast({ title: "User Removed", variant: "destructive" })
   }
 
   const isLoading = isUserLoading || usersLoading || adminsLoading
@@ -169,142 +135,76 @@ export default function CompanyPage() {
             <Building2 className="h-8 w-8" />
             Company Management
           </h1>
-          <p className="text-muted-foreground font-body">Manage company members and access levels for {profile?.companyName || "Your Company"}.</p>
+          <p className="text-muted-foreground font-body">Manage member access for {profile?.companyName || "Your Company"}.</p>
         </div>
         {isCurrentUserAdmin && (
-          <Button className="bg-primary hover:bg-primary/90 shadow-lg gap-2" onClick={() => setIsInviteOpen(true)}>
-            <UserPlus className="h-4 w-4" /> Add Company Member
+          <Button className="bg-primary hover:bg-primary/90 shadow-lg" onClick={() => setIsInviteOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Invite Member
           </Button>
         )}
       </div>
 
-      {isCurrentUserAdmin ? (
+      {isCurrentUserAdmin && pendingUsers.length > 0 && (
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-amber-600 font-bold">
-              <AlertCircle className="h-5 w-5" />
-              <h2>Pending Approvals ({pendingUsers.length})</h2>
-            </div>
+          <div className="flex items-center gap-2 text-amber-600 font-bold">
+            <AlertCircle className="h-5 w-5" />
+            <h2>Pending Approvals ({pendingUsers.length})</h2>
           </div>
-          
-          <div className="grid gap-4">
-            {pendingUsers.length > 0 ? (
-              pendingUsers.map((user) => (
-                <Card key={user.id} className="border-amber-200 bg-amber-50/30 dark:bg-amber-900/10 shadow-sm overflow-hidden">
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-10 w-10 border border-amber-200">
-                        <AvatarFallback className="bg-amber-100 text-amber-700 font-bold">
-                          {(user.firstName?.[0] || "") + (user.lastName?.[0] || "")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-bold text-sm">{user.firstName} {user.lastName}</h3>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </div>
+          <div className="grid gap-3">
+            {pendingUsers.map((user) => (
+              <Card key={user.id} className="border-amber-200 bg-amber-50/30 dark:bg-amber-950/10">
+                <CardContent className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border border-amber-200">
+                      <AvatarFallback className="bg-amber-100 text-amber-700 font-bold">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-bold text-sm">{user.firstName} {user.lastName}</h3>
+                      <p className="text-xs text-muted-foreground">{user.email} • {user.companyName}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                        onClick={() => handleToggleApproval(user.id, false)}
-                      >
-                        <CheckCircle2 className="h-4 w-4" /> Approve Access
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="h-24 flex items-center justify-center border-2 border-dashed rounded-xl text-muted-foreground text-sm italic">
-                No new members are currently waiting for approval.
-              </div>
-            )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-emerald-600" onClick={() => handleToggleApproval(user.id, false)}>Approve</Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteUser(user.id)}>Reject</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </section>
-      ) : (
-        <div className="p-4 bg-secondary/30 rounded-xl border flex gap-3">
-          <Shield className="h-5 w-5 text-primary shrink-0" />
-          <p className="text-sm text-muted-foreground italic">
-            You are currently viewing the company directory as a Member. Administrative controls are restricted.
-          </p>
-        </div>
       )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-primary">Active Members</h2>
-        <div className="grid gap-6">
-          {activeUsers?.map((user) => (
-            <Card key={user.id} className="border-none shadow-sm overflow-hidden group bg-card">
-              <CardContent className="p-0">
-                <div className="flex items-center p-6 gap-4">
-                  <Avatar className="h-12 w-12 border-2 border-secondary">
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                      {(user.firstName?.[0] || "") + (user.lastName?.[0] || "")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg truncate">{user.firstName} {user.lastName}</h3>
-                      {checkIsAdmin(user.id, user.email) ? (
-                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 gap-1 px-2 py-0">
-                          <ShieldCheck className="h-3 w-3" /> Company Admin
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">Company Member</Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="h-3 w-3" /> {user.email}
-                      </div>
-                      <div className="text-xs font-mono bg-secondary/30 px-1.5 py-0.5 rounded">
-                        ID: {user.id.slice(0, 8)}...
-                      </div>
-                    </div>
+        <div className="grid gap-4">
+          {activeUsers.map((user) => (
+            <Card key={user.id} className="border-none shadow-sm group">
+              <CardContent className="p-4 flex items-center gap-4">
+                <Avatar className="h-12 w-12 border-2 border-secondary">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                    {user.firstName?.[0]}{user.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold truncate">{user.firstName} {user.lastName}</h3>
+                    {checkIsAdmin(user.id, user.email) && <Badge className="bg-amber-100 text-amber-700 border-amber-200">Admin</Badge>}
                   </div>
-                  
-                  {isCurrentUserAdmin && (
-                    <div className="flex items-center gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuLabel>Permissions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleToggleAdmin(user.id, checkIsAdmin(user.id, user.email), user.email)}>
-                            {checkIsAdmin(user.id, user.email) ? (
-                              <><Shield className="h-4 w-4 mr-2" /> Revoke Admin Role</>
-                            ) : (
-                              <><ShieldCheck className="h-4 w-4 mr-2" /> Promote to Admin</>
-                            )}
-                          </DropdownMenuItem>
-                          {user.email !== 'roshanismean@gmail.com' && (
-                            <DropdownMenuItem onClick={() => handleToggleApproval(user.id, true)} className="text-amber-600">
-                              <XCircle className="h-4 w-4 mr-2" /> Revoke Access
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          {user.email !== 'roshanismean@gmail.com' && (
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteUser(user.id, user.email)}>
-                              <Trash2 className="h-4 w-4 mr-2" /> Remove from Company
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
+                  <p className="text-xs text-muted-foreground truncate">{user.email} • {user.companyName}</p>
                 </div>
+                {isCurrentUserAdmin && user.email !== 'roshanismean@gmail.com' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleToggleApproval(user.id, true)} className="text-destructive">Revoke Access</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDeleteUser(user.id, user.email)} className="text-destructive">Remove</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -313,35 +213,17 @@ export default function CompanyPage() {
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" />
-              Add Company Member
-            </DialogTitle>
-            <DialogDescription>
-              Provide this registration link to your colleagues. They must register with their own email.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-              <p className="text-sm font-medium text-primary mb-2">Registration Link</p>
-              <div className="flex items-center gap-2 p-2 bg-background border rounded-lg font-mono text-xs select-all">
-                {typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong>Note:</strong> New registrations for your company will appear in your "Pending Approvals" list.
-            </p>
+          <DialogHeader><DialogTitle>Invite Member</DialogTitle></DialogHeader>
+          <div className="py-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">Share this registration link with your team:</p>
+            <code className="block p-3 bg-muted rounded-lg text-xs break-all">{typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'}</code>
           </div>
           <DialogFooter>
-            <Button className="w-full gap-2" onClick={() => {
-              const link = typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'
-              navigator.clipboard.writeText(link)
-              toast({ title: "Link Copied", description: "Share this link with your colleagues." })
+            <Button className="w-full" onClick={() => {
+              navigator.clipboard.writeText(window.location.origin + "/?mode=signup")
+              toast({ title: "Link Copied" })
               setIsInviteOpen(false)
-            }}>
-              <ExternalLink className="h-4 w-4" /> Copy Registration Link
-            </Button>
+            }}>Copy Link</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

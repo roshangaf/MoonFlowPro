@@ -18,7 +18,8 @@ import {
   ArrowLeftRight,
   Wrench,
   History,
-  DollarSign
+  DollarSign,
+  Package
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,6 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
@@ -97,28 +99,17 @@ export default function InventoryPage() {
   const db = useFirestore()
   const { toast } = useToast()
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/")
-    }
-  }, [user, isUserLoading, router])
-
   const [currentInventory, setCurrentInventory] = useState("Main Warehouse")
   const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false)
   const [newInvName, setNewInvName] = useState("")
-  
   const [invToEdit, setInvToEdit] = useState<string | null>(null)
   const [editingInvName, setEditingInvName] = useState("")
-
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
-  
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
-  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newItem, setNewItem] = useState({
     name: "",
@@ -128,27 +119,32 @@ export default function InventoryPage() {
     serialNumber: "",
   })
 
-  // Repair Log State
   const [selectedProductForRepair, setSelectedProductForRepair] = useState<any | null>(null)
   const [repairDescription, setRepairDescription] = useState("")
   const [repairCost, setRepairCost] = useState("")
 
-  // Fetch Profile for Company Info
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isUserLoading, router])
+
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "businessUsers", user.uid)
   }, [db, user?.uid])
 
   const { data: profile } = useDoc(profileRef)
-  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
   const companyId = profile?.companyId
+  const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
 
   const productsQuery = useMemoFirebase(() => {
-    if (!db || !user || !companyId) return null
-    const colRef = collection(db, "products");
-    if (user.email === 'roshanismean@gmail.com') return query(colRef);
-    return query(colRef, where("companyId", "==", companyId))
-  }, [db, user, companyId])
+    if (!db || !user) return null
+    if (isSuperAdmin) return collection(db, "products");
+    if (!companyId) return null;
+    return query(collection(db, "products"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 
@@ -164,6 +160,7 @@ export default function InventoryPage() {
 
   const filteredProducts = (products || []).filter((product) => {
     const matchesSearch = (product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          product.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           product.id.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesStatus = statusFilter === "All" || product.lifecycleStatus === statusFilter
     const matchesInventory = product.location === currentInventory || (!product.location && currentInventory === "Main Warehouse")
@@ -181,10 +178,7 @@ export default function InventoryPage() {
   const handleSwitchInventory = (target: string) => {
     setCurrentInventory(target)
     setIsSwitchDialogOpen(false)
-    toast({
-      title: "Switched Inventory",
-      description: `Now viewing items in: ${target}`,
-    })
+    toast({ title: "Switched Inventory", description: `Now viewing items in: ${target}` })
   }
 
   const handleAddNewInventory = () => {
@@ -221,17 +215,14 @@ export default function InventoryPage() {
     const updated = availableInventories.filter((n: string) => n !== name)
     updateProfileLocations(updated)
     if (currentInventory === name) setCurrentInventory(updated[0])
-    toast({ title: "Location Removed", description: `${name} has been deleted from your records.` })
+    toast({ title: "Location Removed", description: `${name} has been deleted.` })
   }
 
   const handleDelete = () => {
     if (deleteId && db) {
       deleteDocumentNonBlocking(doc(db, "products", deleteId))
       setDeleteId(null)
-      toast({
-        title: "Item Deleted",
-        variant: "destructive"
-      })
+      toast({ title: "Item Deleted", variant: "destructive" })
     }
   }
 
@@ -243,7 +234,7 @@ export default function InventoryPage() {
     setIsBulkDeleteOpen(false)
     setIsSelectionMode(false)
     setSelectedIds(new Set())
-    toast({ title: "Items Removed", description: `${selectedIds.size} items have been deleted.` })
+    toast({ title: "Items Removed", description: `${selectedIds.size} items deleted.` })
   }
 
   const handleAddProduct = () => {
@@ -254,8 +245,7 @@ export default function InventoryPage() {
 
     if (!db) return;
 
-    // Use companyId from profile, fallback to user uid if profile is still loading but required for Super Admin setup
-    const finalCompanyId = companyId || (user?.email === 'roshanismean@gmail.com' ? 'system' : user?.uid);
+    const finalCompanyId = companyId || (isSuperAdmin ? 'system' : user?.uid);
 
     if (!finalCompanyId) {
       toast({ title: "Error", description: "Company profile not found. Please refresh.", variant: "destructive" });
@@ -279,7 +269,7 @@ export default function InventoryPage() {
     addDocumentNonBlocking(collection(db, "products"), productData);
     setIsAddDialogOpen(false);
     setNewItem({ name: "", status: "Received", currentCondition: "Excellent", purchaseCost: "", serialNumber: "" });
-    toast({ title: "Item Added", description: `${newItem.name} has been added to ${currentInventory}.` });
+    toast({ title: "Item Added", description: `${newItem.name} added to stock.` });
   }
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
@@ -288,12 +278,12 @@ export default function InventoryPage() {
       lifecycleStatus: newStatus,
       updatedAt: new Date().toISOString()
     })
-    toast({ title: "Status Updated", description: `Item status changed to ${newStatus}.` })
+    toast({ title: "Status Updated", description: `Item is now ${newStatus}.` })
   }
 
   const handleAddRepair = async () => {
     if (!selectedProductForRepair || !repairDescription || !db) {
-      toast({ title: "Missing Info", description: "Please enter a repair description.", variant: "destructive" });
+      toast({ title: "Missing Info", description: "Enter repair details.", variant: "destructive" });
       return;
     }
 
@@ -317,7 +307,7 @@ export default function InventoryPage() {
 
     setRepairDescription("")
     setRepairCost("")
-    toast({ title: "Repair Recorded", description: `Added cost of $${costNum} to ${selectedProductForRepair.name}.` })
+    toast({ title: "Repair Added", description: `Recorded $${costNum} for ${selectedProductForRepair.name}.` })
   }
 
   const toggleSelection = (id: string) => {
@@ -340,461 +330,303 @@ export default function InventoryPage() {
   if (!user) return null
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in slide-in-from-bottom-2 duration-500 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline" className="border-primary text-primary bg-primary/5 px-2 py-0.5 flex gap-1.5 items-center">
               <Warehouse className="h-3 w-3" />
               {currentInventory}
             </Badge>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
-          <p className="text-muted-foreground font-body text-sm md:text-base">Track your reconditioned items through their entire lifecycle.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
+          <p className="text-muted-foreground text-sm font-body">Manage your reconditioned stock and repair logs.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap gap-2">
           {isSelectionMode ? (
-            <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
-              <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }} className="gap-2">
-                <X className="h-4 w-4" /> Cancel
+            <>
+              <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }}>
+                <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
-              <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)} className="gap-2 shadow-lg">
-                <Trash2 className="h-4 w-4" /> Delete ({selectedIds.size})
+              <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-1" /> Delete ({selectedIds.size})
               </Button>
-            </div>
+            </>
           ) : (
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full md:w-auto">
-              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 gap-2 shadow-sm" onClick={() => setIsSelectionMode(true)}>
-                <Trash2 className="h-4 w-4" /> Clear
+            <>
+              <Button variant="outline" className="border-destructive text-destructive" onClick={() => setIsSelectionMode(true)}>
+                <Trash2 className="h-4 w-4 mr-1" /> Clear
               </Button>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg gap-2" onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4" /> New Item
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
-              <Button variant="outline" className="col-span-2 sm:w-auto flex gap-2 shadow-sm border-primary text-primary hover:bg-primary/5" onClick={() => setIsSwitchDialogOpen(true)}>
-                <ArrowLeftRight className="h-4 w-4" /> Switch Location
+              <Button variant="outline" onClick={() => setIsSwitchDialogOpen(true)}>
+                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch
               </Button>
-            </div>
+            </>
           )}
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border">
+      <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-xl shadow-sm border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder={`Search in ${currentInventory}...`} 
-            className="pl-10 h-10 border-input bg-background/50 focus:bg-background w-full" 
+            placeholder="Search by name or serial..." 
+            className="pl-9 h-10" 
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
           />
         </div>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={cn("flex gap-2 w-full sm:w-auto", statusFilter !== 'All' && "border-primary text-primary")}>
-              <Filter className="h-4 w-4" /> 
-              {statusFilter === 'All' ? 'Filters' : `Status: ${statusFilter}`}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {FILTER_STATUSES.map((status) => (
-              <DropdownMenuCheckboxItem 
-                key={status} 
-                checked={statusFilter === status} 
-                onCheckedChange={() => setStatusFilter(status)}
-              >
-                {status}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            {FILTER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/10">
-          <Table>
-            <TableHeader className="bg-muted/50">
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow>
+              {isSelectionMode && <TableHead className="w-[50px]"></TableHead>}
+              <TableHead className="font-semibold text-foreground">Product Details</TableHead>
+              <TableHead className="text-center font-semibold text-foreground">Status</TableHead>
+              <TableHead className="font-semibold text-foreground">Condition</TableHead>
+              <TableHead className="text-right font-semibold text-foreground">Total Investment</TableHead>
+              <TableHead className="w-[100px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProducts.length === 0 ? (
               <TableRow>
-                {isSelectionMode && <TableHead className="w-[50px]"></TableHead>}
-                <TableHead className="min-w-[220px] font-semibold text-foreground">Product Details</TableHead>
-                <TableHead className="font-semibold text-center min-w-[150px] text-foreground">Lifecycle Status</TableHead>
-                <TableHead className="font-semibold min-w-[130px] text-foreground">Condition</TableHead>
-                <TableHead className="font-semibold text-right min-w-[150px] text-foreground">Acquisition Cost</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No items found.</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredProducts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    No items found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredProducts.map((product) => {
-                  const totalInvestment = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
-                  return (
-                    <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-muted/50")}>
-                      {isSelectionMode && (
-                        <TableCell>
-                          <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
-                        </TableCell>
-                      )}
+            ) : (
+              filteredProducts.map((product) => {
+                const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
+                return (
+                  <TableRow key={product.id} className={cn(selectedIds.has(product.id) && "bg-primary/5")}>
+                    {isSelectionMode && (
                       <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono mt-1 opacity-70">SN: {product.serialNumber}</span>
-                        </div>
+                        <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
                       </TableCell>
-                      <TableCell className="text-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="outline-none">
-                              <Badge variant="outline" className={`${getStatusColor(product.lifecycleStatus)} px-3 py-1 font-medium border cursor-pointer`}>
-                                {product.lifecycleStatus}
-                              </Badge>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="center" className="w-40">
-                            <DropdownMenuLabel className="text-xs">Update Status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {ALL_STATUSES.map((status) => (
-                              <DropdownMenuItem key={status} onClick={() => handleStatusChange(product.id, status)}>
-                                {status}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground font-medium">{product.currentCondition}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="font-bold text-primary">${totalInvestment.toLocaleString()}</span>
-                          {product.totalRepairCost > 0 && (
-                            <span className="text-[10px] text-muted-foreground">Incl. repairs: ${product.totalRepairCost}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => setSelectedProductForRepair(product)}
-                          >
-                            <Wrench className="h-4 w-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => setDeleteId(product.id)} className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete Item
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                    )}
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-foreground">{product.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">SN: {product.serialNumber}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Badge variant="outline" className={cn("cursor-pointer", getStatusColor(product.lifecycleStatus))}>
+                            {product.lifecycleStatus}
+                          </Badge>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          {ALL_STATUSES.map(s => <DropdownMenuItem key={s} onClick={() => handleStatusChange(product.id, s)}>{s}</DropdownMenuItem>)}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">{product.currentCondition}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-primary">${totalInvest.toLocaleString()}</span>
+                        {product.totalRepairCost > 0 && <span className="text-[9px] text-muted-foreground">Repairs: ${product.totalRepairCost}</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedProductForRepair(product)}><Wrench className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(product.id)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Repair Logs Dialog */}
-      <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] rounded-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-primary" />
-              Manage Repairs
-            </DialogTitle>
-            <DialogDescription>
-              Record maintenance and repairs for <strong>{selectedProductForRepair?.name}</strong>. This increases the cumulative cost of the item.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto py-4 space-y-6">
-            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-primary">New Repair Entry</h4>
-              <div className="grid gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="repair-desc" className="text-[10px] font-bold text-muted-foreground">Work Performed</Label>
-                  <Input 
-                    id="repair-desc" 
-                    placeholder="e.g. Replaced battery, cleaned chain" 
-                    value={repairDescription}
-                    onChange={(e) => setRepairDescription(e.target.value)}
-                  />
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredProducts.map((product) => {
+          const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
+          return (
+            <Card key={product.id} className={cn("overflow-hidden border-none shadow-sm relative", selectedIds.has(product.id) && "ring-2 ring-primary")}>
+              {isSelectionMode && (
+                <div className="absolute top-4 left-4 z-10">
+                  <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
                 </div>
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div className="grid gap-2">
-                    <Label htmlFor="repair-cost" className="text-[10px] font-bold text-muted-foreground">Cost ($)</Label>
-                    <Input 
-                      id="repair-cost" 
-                      type="number" 
-                      placeholder="0.00"
-                      value={repairCost}
-                      onChange={(e) => setRepairCost(e.target.value)}
-                    />
+              )}
+              <CardContent className={cn("p-4 flex flex-col gap-4", isSelectionMode && "pl-12")}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-foreground leading-tight">{product.name}</h3>
+                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">SN: {product.serialNumber}</p>
                   </div>
-                  <Button onClick={handleAddRepair} className="gap-2">
-                    <Plus className="h-4 w-4" /> Add Record
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Badge variant="outline" className={cn("text-[10px] px-2 py-0", getStatusColor(product.lifecycleStatus))}>
+                        {product.lifecycleStatus}
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {ALL_STATUSES.map(s => <DropdownMenuItem key={s} onClick={() => handleStatusChange(product.id, s)}>{s}</DropdownMenuItem>)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total Investment</span>
+                    <span className="text-lg font-bold text-primary">${totalInvest.toLocaleString()}</span>
+                    {product.totalRepairCost > 0 && <span className="text-[9px] text-muted-foreground font-medium">Incl. ${product.totalRepairCost} Repairs</span>}
+                  </div>
+                  <div className="flex flex-col items-end text-right">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Condition</span>
+                    <span className="text-sm font-semibold">{product.currentCondition}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-3 border-t">
+                  <Button variant="secondary" size="sm" className="flex-1 gap-1.5" onClick={() => setSelectedProductForRepair(product)}>
+                    <Wrench className="h-3 w-3" /> Repair Logs
+                  </Button>
+                  <Button variant="ghost" size="sm" className="w-10 text-destructive" onClick={() => setDeleteId(product.id)}>
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+        {filteredProducts.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">No items matching filters.</div>
+        )}
+      </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <History className="h-3 w-3" />
-                  Repair History
-                </h4>
-                <Badge variant="secondary" className="font-bold">${selectedProductForRepair?.totalRepairCost || 0} Total Repairs</Badge>
-              </div>
-              
-              <div className="space-y-2">
-                {repairsLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                ) : (repairLogs && repairLogs.length > 0) ? (
-                  repairLogs.map((log) => (
-                    <div key={log.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold">{log.description}</p>
-                        <p className="text-[10px] text-muted-foreground">{new Date(log.date).toLocaleDateString()} • By {log.performedBy}</p>
-                      </div>
-                      <div className="text-sm font-bold text-primary">
-                        +${(log.cost || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-                    No repair records found for this item.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Switch Inventory Dialog */}
-      <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+      {/* Dialogs remain similar but ensure proper responsiveness */}
+      <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
+        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <div className="p-6 border-b bg-muted/30">
             <DialogTitle className="flex items-center gap-2">
-              <ArrowLeftRight className="h-5 w-5 text-primary" />
-              Inventory Locations
+              <Wrench className="h-5 w-5 text-primary" />
+              Repair Management
             </DialogTitle>
-            <DialogDescription>
-              Switch between different warehouses or showrooms.
+            <DialogDescription className="mt-1">
+              Tracking maintenance for <strong>{selectedProductForRepair?.name}</strong>.
             </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-6 overflow-y-auto px-1 flex-1">
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
+              <Label className="text-[10px] font-bold uppercase text-primary">Add New Log</Label>
+              <div className="space-y-3">
+                <Input placeholder="Description of work..." value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} />
+                <div className="flex gap-2">
+                  <Input type="number" placeholder="Cost ($)" value={repairCost} onChange={(e) => setRepairCost(e.target.value)} />
+                  <Button onClick={handleAddRepair} className="shrink-0"><Plus className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </div>
             <div className="space-y-3">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Available Locations</Label>
-              <div className="grid gap-2">
-                {availableInventories.map((name: string) => (
-                  <div 
-                    key={name}
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group",
-                      currentInventory === name 
-                        ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
-                        : "bg-card hover:bg-muted/50"
-                    )}
-                    onClick={() => handleSwitchInventory(name)}
-                  >
-                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                      <Warehouse className={cn("h-4 w-4 shrink-0", currentInventory === name ? "text-primary" : "text-muted-foreground")} />
-                      {invToEdit === name ? (
-                        <Input 
-                          autoFocus
-                          className="h-8 py-0 w-full" 
-                          value={editingInvName}
-                          onChange={(e) => setEditingInvName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRenameInventory(name, editingInvName)
-                            if (e.key === 'Escape') setInvToEdit(null)
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span className={cn("font-bold truncate text-foreground", currentInventory === name && "text-primary")}>{name}</span>
-                      )}
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center justify-between">
+                <span>History</span>
+                <span className="text-primary">${selectedProductForRepair?.totalRepairCost || 0} Total</span>
+              </Label>
+              <div className="space-y-2">
+                {repairsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /> : repairLogs?.map(log => (
+                  <div key={log.id} className="flex justify-between p-3 rounded-lg border bg-card text-xs">
+                    <div className="space-y-0.5">
+                      <p className="font-bold">{log.description}</p>
+                      <p className="text-muted-foreground opacity-70">{new Date(log.date).toLocaleDateString()} • {log.performedBy}</p>
                     </div>
-                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                      {invToEdit === name ? (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-emerald-600"
-                          onClick={(e) => { e.stopPropagation(); handleRenameInventory(name, editingInvName) }}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setInvToEdit(name); 
-                            setEditingInvName(name); 
-                          }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive"
-                        disabled={availableInventories.length <= 1}
-                        onClick={(e) => handleDeleteInventory(e, name)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <span className="font-bold text-primary">+${log.cost}</span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Create New Location</Label>
-              <div className="flex flex-col gap-2">
-                <Input 
-                  placeholder="e.g. Dallas Showroom" 
-                  value={newInvName}
-                  onChange={(e) => setNewInvName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddNewInventory()}
-                  className="flex-1"
-                />
-                <Button variant="secondary" onClick={handleAddNewInventory} className="flex gap-2 w-full font-bold">
-                  <PlusCircle className="h-4 w-4" /> Add location
-                </Button>
+                {!repairsLoading && (!repairLogs || repairLogs.length === 0) && <p className="text-center py-4 text-xs text-muted-foreground italic">No repairs recorded yet.</p>}
               </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Add New Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add New Inventory Item</DialogTitle>
-            <DialogDescription>
-              Record a new acquisition for {currentInventory}.
-            </DialogDescription>
+            <DialogTitle>Add New Bike to Stock</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-5 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Product Name / Model</Label>
-              <Input id="name" placeholder="e.g. Mountain Bike XT-200" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Product Name</Label>
+              <Input placeholder="e.g. Yamaha R15 V3" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="status" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Initial Status</Label>
-                <Select value={newItem.status} onValueChange={(v: ProductStatus) => setNewItem({...newItem, status: v})}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Purchase Cost ($)</Label>
+                <Input type="number" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Condition</Label>
+                <Select value={newItem.currentCondition} onValueChange={(v) => setNewItem({...newItem, currentCondition: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    <SelectItem value="Excellent">Excellent</SelectItem>
+                    <SelectItem value="Good">Good</SelectItem>
+                    <SelectItem value="Fair">Fair</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="cost" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Purchase Cost ($)</Label>
-                <Input 
-                  id="cost" 
-                  type="number" 
-                  placeholder="0.00"
-                  value={newItem.purchaseCost} 
-                  onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} 
-                />
-              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="condition" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Condition</Label>
-              <Select value={newItem.currentCondition} onValueChange={(v: string) => setNewItem({...newItem, currentCondition: v})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Excellent">Excellent</SelectItem>
-                  <SelectItem value="Good">Good</SelectItem>
-                  <SelectItem value="Fair">Fair</SelectItem>
-                  <SelectItem value="Poor">Poor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="serial" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Serial Number / VIN</Label>
-              <Input id="serial" placeholder="Optional" value={newItem.serialNumber} onChange={(e) => setNewItem({...newItem, serialNumber: e.target.value})} />
+            <div className="space-y-2">
+              <Label>Serial / Chassis No.</Label>
+              <Input placeholder="Optional" value={newItem.serialNumber} onChange={(e) => setNewItem({...newItem, serialNumber: e.target.value})} />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 mt-2">
-            <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button onClick={handleAddProduct} className="bg-primary hover:bg-primary/90 w-full sm:w-auto font-bold shadow-lg">Add to Stock</Button>
+          <DialogFooter>
+            <Button className="w-full font-bold h-12" onClick={handleAddProduct}>Add to Inventory</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Delete Confirmation */}
-      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
-        <AlertDialogContent className="w-[95vw] rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} Items?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove these items from your records. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto">
-              Delete Items
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Switch Warehouse</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-2">
+              {availableInventories.map(name => (
+                <div key={name} className={cn("p-3 rounded-lg border flex justify-between items-center cursor-pointer", currentInventory === name ? "bg-primary/10 border-primary" : "bg-card")} onClick={() => handleSwitchInventory(name)}>
+                  <span className="font-bold flex items-center gap-2"><Warehouse className="h-4 w-4" /> {name}</span>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => handleDeleteInventory(e, name)} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Separator />
+            <div className="flex gap-2">
+              <Input placeholder="New Location..." value={newInvName} onChange={(e) => setNewInvName(e.target.value)} />
+              <Button variant="secondary" onClick={handleAddNewInventory}><Plus className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Single Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[95vw] rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this product from your inventory records?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto">
-              Delete Item
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Confirm Removal</AlertDialogTitle></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
