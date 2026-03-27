@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -13,7 +12,8 @@ import {
   X, 
   ArrowLeftRight, 
   Wrench,
-  Package
+  Package,
+  ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -132,9 +132,10 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "products")
     if (!companyId) return null;
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved])
+  }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 
@@ -163,8 +164,10 @@ export default function InventoryPage() {
       return;
     }
 
-    if (!db || !user) return;
-    const finalCompanyId = companyId || user.uid;
+    if (!db || !user || !companyId) {
+      toast({ title: "Error", description: "Company profile not fully loaded. Please try again.", variant: "destructive" });
+      return;
+    }
 
     const productData = {
       name: newItem.name,
@@ -174,7 +177,7 @@ export default function InventoryPage() {
       totalRepairCost: 0,
       serialNumber: newItem.serialNumber || `SN-${Math.floor(Math.random() * 100000)}`,
       location: currentInventory,
-      companyId: finalCompanyId,
+      companyId: companyId,
       purchaseDate: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -183,7 +186,7 @@ export default function InventoryPage() {
     addDocumentNonBlocking(collection(db, "products"), productData);
     setIsAddDialogOpen(false);
     setNewItem({ name: "", status: "Received", currentCondition: "Excellent", purchaseCost: "", serialNumber: "" });
-    toast({ title: "Item Added", description: `${newItem.name} added to your company inventory.` });
+    toast({ title: "Item Added", description: `${newItem.name} added to inventory.` });
   }
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
@@ -192,7 +195,7 @@ export default function InventoryPage() {
       lifecycleStatus: newStatus,
       updatedAt: new Date().toISOString()
     })
-    toast({ title: "Status Updated", description: `Item is now ${newStatus}.` })
+    toast({ title: "Status Updated", description: `Item status changed to ${newStatus}.` })
   }
 
   const handleAddRepair = async () => {
@@ -217,7 +220,7 @@ export default function InventoryPage() {
 
     setRepairDescription("")
     setRepairCost("")
-    toast({ title: "Repair Added", description: `Recorded $${costNum} investment for ${selectedProductForRepair.name}.` })
+    toast({ title: "Repair Added", description: `Recorded $${costNum} investment.` })
   }
 
   const handleDelete = () => {
@@ -280,7 +283,7 @@ export default function InventoryPage() {
   if (!user || !isApproved) return null
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500 pb-10">
+    <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 mb-1">
@@ -290,16 +293,16 @@ export default function InventoryPage() {
             </Badge>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
-          <p className="text-muted-foreground text-sm font-body">Manage your company's reconditioned stock and repair logs.</p>
+          <p className="text-muted-foreground text-sm font-body">Manage your company's stock and reconditioning records.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {isSelectionMode ? (
             <>
               <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }}>
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
               <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
-                <Trash2 className="h-4 w-4 mr-1" /> Delete ({selectedIds.size})
+                <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
             </>
           ) : (
@@ -308,10 +311,10 @@ export default function InventoryPage() {
                 <Trash2 className="h-4 w-4 mr-1" /> Clear
               </Button>
               <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add Item
+                <Plus className="h-4 w-4 mr-1" /> Add Bike
               </Button>
-              <Button variant="outline" onClick={() => setIsSwitchDialogOpen(true)}>
-                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch
+              <Button variant="outline" onClick={() => setIsSwitchDialogOpen(true)} className="col-span-2 sm:col-auto">
+                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch Warehouse
               </Button>
             </>
           )}
@@ -323,14 +326,14 @@ export default function InventoryPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search by name or serial..." 
-            className="pl-9 h-10" 
+            className="pl-9 h-10 border-none bg-background/50 focus:bg-background" 
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
           />
         </div>
         
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px] bg-background/50">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -356,7 +359,7 @@ export default function InventoryPage() {
           <TableBody>
             {filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No inventory records found for your company.</TableCell>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground font-medium">No inventory records found.</TableCell>
               </TableRow>
             ) : (
               filteredProducts.map((product) => {
@@ -377,8 +380,8 @@ export default function InventoryPage() {
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Badge variant="outline" className={cn("cursor-pointer", getStatusColor(product.lifecycleStatus))}>
-                            {product.lifecycleStatus}
+                          <Badge variant="outline" className={cn("cursor-pointer flex gap-1 items-center justify-center", getStatusColor(product.lifecycleStatus))}>
+                            {product.lifecycleStatus} <ChevronDown className="h-3 w-3 opacity-50" />
                           </Badge>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
@@ -408,7 +411,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
           return (
@@ -425,14 +428,14 @@ export default function InventoryPage() {
                       <Package className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-foreground leading-tight">{product.name}</h3>
+                      <h3 className="font-bold text-foreground leading-tight text-base">{product.name}</h3>
                       <p className="text-[10px] text-muted-foreground font-mono mt-0.5">SN: {product.serialNumber}</p>
                     </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Badge variant="outline" className={cn("text-[10px] px-2 py-0", getStatusColor(product.lifecycleStatus))}>
-                        {product.lifecycleStatus}
+                      <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5 gap-1", getStatusColor(product.lifecycleStatus))}>
+                        {product.lifecycleStatus} <ChevronDown className="h-2.5 w-2.5 opacity-50" />
                       </Badge>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -441,9 +444,9 @@ export default function InventoryPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 py-2 border-y border-muted/50">
                   <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total Investment</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Investment</span>
                     <span className="text-lg font-bold text-primary">${totalInvest.toLocaleString()}</span>
                     {product.totalRepairCost > 0 && <span className="text-[9px] text-muted-foreground font-medium">Incl. ${product.totalRepairCost} Repairs</span>}
                   </div>
@@ -453,12 +456,12 @@ export default function InventoryPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-3 border-t">
-                  <Button variant="secondary" size="sm" className="flex-1 gap-1.5" onClick={() => setSelectedProductForRepair(product)}>
-                    <Wrench className="h-3 w-3" /> Repair Logs
+                <div className="flex items-center gap-2 pt-1">
+                  <Button variant="secondary" size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => setSelectedProductForRepair(product)}>
+                    <Wrench className="h-4 w-4" /> Repair Logs
                   </Button>
-                  <Button variant="ghost" size="sm" className="w-10 text-destructive" onClick={() => setDeleteId(product.id)}>
-                    <Trash2 className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="w-10 h-10 text-destructive" onClick={() => setDeleteId(product.id)}>
+                    <Trash2 className="h-5 w-5" />
                   </Button>
                 </div>
               </CardContent>
@@ -466,7 +469,7 @@ export default function InventoryPage() {
           )
         })}
         {filteredProducts.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">No company items matching filters.</div>
+          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed font-medium">No company items found.</div>
         )}
       </div>
 
@@ -486,10 +489,10 @@ export default function InventoryPage() {
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
               <Label className="text-[10px] font-bold uppercase text-primary">Log New Repair Task</Label>
               <div className="space-y-3">
-                <Input placeholder="Description (e.g., Brake Pad Replacement)" value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} />
+                <Input placeholder="Description (e.g., Brake Pad Replacement)" value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} className="bg-background" />
                 <div className="flex gap-2">
-                  <Input type="number" placeholder="Cost ($)" value={repairCost} onChange={(e) => setRepairCost(e.target.value)} />
-                  <Button onClick={handleAddRepair} className="shrink-0"><Plus className="h-4 w-4" /></Button>
+                  <Input type="number" placeholder="Cost ($)" value={repairCost} onChange={(e) => setRepairCost(e.target.value)} className="bg-background" />
+                  <Button onClick={handleAddRepair} className="shrink-0 h-10"><Plus className="h-5 w-5" /></Button>
                 </div>
               </div>
             </div>
@@ -502,13 +505,13 @@ export default function InventoryPage() {
                 {repairsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /> : repairLogs?.map(log => (
                   <div key={log.id} className="flex justify-between p-3 rounded-lg border bg-background text-xs">
                     <div className="space-y-0.5">
-                      <p className="font-bold">{log.description}</p>
+                      <p className="font-bold text-foreground">{log.description}</p>
                       <p className="text-muted-foreground opacity-70">{new Date(log.date).toLocaleDateString()} • {log.performedBy}</p>
                     </div>
                     <span className="font-bold text-primary">+${log.cost}</span>
                   </div>
                 ))}
-                {!repairsLoading && (!repairLogs || repairLogs.length === 0) && <p className="text-center py-4 text-xs text-muted-foreground italic">No repairs recorded yet.</p>}
+                {!repairsLoading && (!repairLogs || repairLogs.length === 0) && <p className="text-center py-8 text-xs text-muted-foreground italic bg-muted/10 rounded-lg border-2 border-dashed">No repairs recorded yet.</p>}
               </div>
             </div>
           </div>
@@ -517,24 +520,25 @@ export default function InventoryPage() {
 
       {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl bg-card">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
+          <div className="p-6 bg-muted/30 border-b">
             <DialogTitle>Add New Bike to Stock</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
+            <DialogDescription>Enter initial details for your new inventory item.</DialogDescription>
+          </div>
+          <div className="p-6 space-y-5">
             <div className="space-y-2">
-              <Label>Product Name</Label>
-              <Input placeholder="e.g. Yamaha R15 V3" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Product Name</Label>
+              <Input placeholder="e.g. Yamaha R15 V3" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} className="h-11 bg-background" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Purchase Cost ($)</Label>
-                <Input type="number" placeholder="Enter cost" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} />
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Purchase Cost ($)</Label>
+                <Input type="number" placeholder="0" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} className="h-11 bg-background" />
               </div>
               <div className="space-y-2">
-                <Label>Condition</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Condition</Label>
                 <Select value={newItem.currentCondition} onValueChange={(v) => setNewItem({...newItem, currentCondition: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-11 bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Excellent">Excellent</SelectItem>
                     <SelectItem value="Good">Good</SelectItem>
@@ -544,37 +548,39 @@ export default function InventoryPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Serial / Chassis No.</Label>
-              <Input placeholder="Optional" value={newItem.serialNumber} onChange={(e) => setNewItem({...newItem, serialNumber: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Serial / Chassis No.</Label>
+              <Input placeholder="Optional" value={newItem.serialNumber} onChange={(e) => setNewItem({...newItem, serialNumber: e.target.value})} className="h-11 bg-background" />
             </div>
           </div>
-          <DialogFooter>
-            <Button className="w-full font-bold h-12" onClick={handleAddProduct}>Add to Company Inventory</Button>
-          </DialogFooter>
+          <Separator />
+          <div className="p-6">
+            <Button className="w-full font-bold h-12 text-base shadow-lg" onClick={handleAddProduct}>Add to Company Inventory</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Warehouse Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl bg-card">
-          <DialogHeader>
-            <DialogTitle>Switch Warehouse</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid gap-2">
+        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
+          <div className="p-6 bg-muted/30 border-b">
+            <DialogTitle>Inventory Locations</DialogTitle>
+            <DialogDescription>Manage and switch between your company warehouses.</DialogDescription>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
               {availableInventories.map(name => (
-                <div key={name} className={cn("p-3 rounded-lg border flex justify-between items-center cursor-pointer", currentInventory === name ? "bg-primary/10 border-primary" : "bg-background")} onClick={() => handleSwitchInventory(name)}>
-                  <span className="font-bold flex items-center gap-2"><Warehouse className="h-4 w-4" /> {name}</span>
+                <div key={name} className={cn("p-4 rounded-xl border flex justify-between items-center cursor-pointer transition-all", currentInventory === name ? "bg-primary/10 border-primary ring-1 ring-primary" : "bg-background hover:border-primary/50")} onClick={() => handleSwitchInventory(name)}>
+                  <span className="font-bold flex items-center gap-2 text-foreground"><Warehouse className="h-4 w-4 text-primary" /> {name}</span>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { handleDeleteInventory(e, name); }} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => { handleDeleteInventory(e, name); }} disabled={availableInventories.length <= 1}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
               ))}
             </div>
             <Separator />
             <div className="flex gap-2">
-              <Input placeholder="New Location..." value={newInvName} onChange={(e) => setNewInvName(e.target.value)} />
-              <Button variant="secondary" onClick={handleAddNewInventory}><Plus className="h-4 w-4" /></Button>
+              <Input placeholder="New Location Name..." value={newInvName} onChange={(e) => setNewInvName(e.target.value)} className="h-11 bg-background" />
+              <Button variant="secondary" onClick={handleAddNewInventory} className="h-11 px-4"><Plus className="h-5 w-5" /></Button>
             </div>
           </div>
         </DialogContent>
@@ -585,11 +591,11 @@ export default function InventoryPage() {
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedIds.size} Items?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently remove these records from your company inventory.</AlertDialogDescription>
+            <AlertDialogDescription>This will permanently remove these records from your company inventory. This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive">Delete All</AlertDialogAction>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto">Delete Permanently</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -597,8 +603,14 @@ export default function InventoryPage() {
       {/* Individual Delete Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
-          <AlertDialogHeader><AlertDialogTitle>Confirm Removal</AlertDialogTitle></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete FR</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Removal</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete this item from your stock record?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto">Delete Item</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -28,8 +27,6 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
 
   const isLoginPage = pathname === "/"
-  
-  // Specific hardcoded check for the super admin email
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = (profile?.approved === true) || isSuperAdmin
 
@@ -38,22 +35,22 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 md:p-6">
         <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
-          <div className="h-20 w-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="h-20 w-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-amber-200">
             <ShieldAlert className="h-10 w-10 text-amber-600" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-primary font-headline">Pending Approval</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold text-primary font-headline tracking-tight">Pending Activation</h1>
+            <p className="text-muted-foreground text-sm">
               Hello, {profile?.firstName || 'User'}. Your account for <strong>{profile?.companyName || 'your company'}</strong> has been created but requires administrator approval.
             </p>
           </div>
-          <div className="p-4 bg-secondary/50 rounded-xl border">
-            <p className="text-sm font-medium">An email notification has been queued for the system administrator. Access will be granted shortly.</p>
+          <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200/50">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-400">An email notification has been queued for the system administrator. Access will be granted shortly.</p>
           </div>
           <div className="space-y-3 pt-4">
             <Button 
               variant="outline" 
-              className="w-full gap-2 h-11" 
+              className="w-full gap-2 h-12 font-bold" 
               onClick={() => {
                 if (auth) {
                   signOut(auth).then(() => router.push("/"))
@@ -65,11 +62,11 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
             
             <div className="mt-8 pt-6 border-t space-y-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                Admin Note
+                Account Credentials
               </p>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">User ID:</span>
-                <code className="bg-slate-100 p-2 rounded text-[10px] font-mono break-all select-all w-full">
+                <span className="text-[10px] text-muted-foreground">System UID:</span>
+                <code className="bg-slate-100 dark:bg-slate-900 p-2 rounded text-[10px] font-mono break-all select-all w-full border">
                   {user.uid}
                 </code>
               </div>
@@ -83,10 +80,10 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
   // If loading user or profile
   if (user && (isUserLoading || isProfileLoading)) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center">
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse font-medium">Authenticating...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground animate-pulse font-bold tracking-widest uppercase">Initializing Portal</p>
         </div>
       </div>
     )
@@ -103,20 +100,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <FirebaseClientProvider>
       <ApprovalWrapper>
         {isLoginPage ? (
-          <main className="w-full min-h-screen">{children}</main>
+          <main className="w-full min-h-screen bg-background">{children}</main>
         ) : (
           <SidebarProvider>
-            <div className="flex min-h-screen w-full">
+            <div className="flex min-h-screen w-full bg-background">
               <AppSidebar />
-              <SidebarInset className="bg-background flex flex-col">
-                <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 md:hidden bg-background sticky top-0 z-20">
+              <SidebarInset className="bg-background flex flex-col min-w-0 w-full">
+                <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 md:hidden bg-background/95 backdrop-blur sticky top-0 z-50">
                   <div className="flex items-center gap-3">
-                    <SidebarTrigger className="-ml-1" />
+                    <SidebarTrigger className="-ml-1 h-10 w-10" />
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
+                       <div className="h-9 w-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
                          <ArrowLeftRight className="h-5 w-5" />
                        </div>
-                       <span className="font-bold text-sm tracking-tight">MoonFlowPro</span>
+                       <span className="font-bold text-base tracking-tight text-primary">MoonFlowPro</span>
                     </div>
                   </div>
                 </header>
