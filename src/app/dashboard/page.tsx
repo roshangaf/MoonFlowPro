@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect } from "react"
@@ -15,8 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
+import { collection, query, where } from "firebase/firestore"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -30,9 +31,36 @@ export default function DashboardPage() {
     }
   }, [user, isUserLoading, router])
 
-  const productsQuery = useMemoFirebase(() => (db && user) ? collection(db, "products") : null, [db, user])
-  const customersQuery = useMemoFirebase(() => (db && user) ? collection(db, "customers") : null, [db, user])
-  const salesQuery = useMemoFirebase(() => (db && user) ? collection(db, "sales") : null, [db, user])
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "businessUsers", user.uid)
+  }, [db, user?.uid])
+
+  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
+  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "products")
+    if (!companyId) return null
+    return query(collection(db, "products"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin, isApproved])
+
+  const customersQuery = useMemoFirebase(() => {
+    if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "customers")
+    if (!companyId) return null
+    return query(collection(db, "customers"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin, isApproved])
+
+  const salesQuery = useMemoFirebase(() => {
+    if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "sales")
+    if (!companyId) return null
+    return query(collection(db, "sales"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
@@ -43,7 +71,7 @@ export default function DashboardPage() {
   const totalCustomers = (customers || []).length
   const recentSales = [...(sales || [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
 
-  const isLoading = isUserLoading || productsLoading || customersLoading || salesLoading
+  const isLoading = isUserLoading || isProfileLoading || productsLoading || customersLoading || salesLoading
 
   if (isLoading) {
     return (
@@ -53,7 +81,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (!user) return null
+  if (!user || !isApproved) return null
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

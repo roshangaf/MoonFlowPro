@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { 
   BadgeDollarSign, 
   Calendar, 
@@ -12,7 +13,8 @@ import {
   Trash2,
   X,
   TrendingUp,
-  PackageCheck
+  PackageCheck,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,17 +37,47 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MOCK_SALES, MOCK_PRODUCTS, MOCK_CUSTOMERS } from "@/app/lib/mock-data"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
+import { collection, doc, query, where } from "firebase/firestore"
+import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function SalesPage() {
-  const [sales, setSales] = useState(MOCK_SALES)
+  const router = useRouter()
+  const { user, isUserLoading } = useUser()
+  const db = useFirestore()
+  const { toast } = useToast()
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isUserLoading, router])
+
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "businessUsers", user.uid)
+  }, [db, user?.uid])
+
+  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
+  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+
+  const salesQuery = useMemoFirebase(() => {
+    if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "sales")
+    if (!companyId) return null
+    return query(collection(db, "sales"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin, isApproved])
+
+  const { data: sales, isLoading: salesLoading } = useCollection(salesQuery)
+
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
-  
-  const { toast } = useToast()
 
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds)
@@ -58,15 +90,18 @@ export default function SalesPage() {
   }
 
   const toggleAll = () => {
-    if (selectedIds.size === sales.length) {
+    if (selectedIds.size === (sales || []).length) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(sales.map(s => s.id)))
+      setSelectedIds(new Set((sales || []).map(s => s.id)))
     }
   }
 
   const handleBulkDelete = () => {
-    setSales(sales.filter(s => !selectedIds.has(s.id)))
+    if (!db) return
+    selectedIds.forEach(id => {
+      deleteDocumentNonBlocking(doc(db, "sales", id))
+    })
     const count = selectedIds.size
     setSelectedIds(new Set())
     setIsSelectionMode(false)
@@ -78,8 +113,20 @@ export default function SalesPage() {
     })
   }
 
-  const totalRevenue = sales.reduce((sum, s) => sum + s.amount, 0)
-  const avgSale = sales.length > 0 ? totalRevenue / sales.length : 0
+  const totalRevenue = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+  const avgSale = (sales || []).length > 0 ? totalRevenue / (sales || []).length : 0
+
+  const isLoading = isUserLoading || isProfileLoading || salesLoading
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user || !isApproved) return null
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-2 duration-500 pb-10">
@@ -164,7 +211,7 @@ export default function SalesPage() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-muted-foreground text-sm font-medium">Items Sold</p>
-              <h2 className="text-2xl md:text-3xl font-bold mt-1 text-primary">{sales.length}</h2>
+              <h2 className="text-2xl md:text-3xl font-bold mt-1 text-primary">{(sales || []).length}</h2>
             </div>
             <div className="bg-secondary p-2 rounded-lg">
               <PackageCheck className="h-6 w-6 text-primary" />
@@ -185,72 +232,64 @@ export default function SalesPage() {
                 {isSelectionMode && (
                   <TableHead className="w-[50px]">
                     <Checkbox 
-                      checked={selectedIds.size > 0 && selectedIds.size === sales.length}
+                      checked={selectedIds.size > 0 && selectedIds.size === (sales || []).length}
                       onCheckedChange={toggleAll}
                     />
                   </TableHead>
                 )}
                 <TableHead className="font-semibold min-w-[140px] text-foreground">Transaction ID</TableHead>
-                <TableHead className="font-semibold min-w-[160px] text-foreground">Customer</TableHead>
-                <TableHead className="font-semibold min-w-[200px] text-foreground">Product</TableHead>
+                <TableHead className="font-semibold min-w-[200px] text-foreground">Details</TableHead>
                 <TableHead className="font-semibold text-center min-w-[120px] text-foreground">Date</TableHead>
                 <TableHead className="font-semibold min-w-[140px] text-foreground">Method</TableHead>
                 <TableHead className="font-semibold text-right min-w-[120px] text-foreground">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sales.map((sale) => {
-                const product = MOCK_PRODUCTS.find(p => p.id === sale.productId);
-                const customer = MOCK_CUSTOMERS.find(c => c.id === sale.customerId);
-                return (
-                  <TableRow 
-                    key={sale.id} 
-                    className={cn(
-                      "hover:bg-muted/50 transition-colors",
-                      selectedIds.has(sale.id) && "bg-primary/5 hover:bg-primary/10"
-                    )}
-                  >
-                    {isSelectionMode && (
-                      <TableCell>
-                        <Checkbox 
-                          checked={selectedIds.has(sale.id)}
-                          onCheckedChange={() => toggleSelection(sale.id)}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                      #{sale.id}
-                    </TableCell>
+              {(sales || []).map((sale) => (
+                <TableRow 
+                  key={sale.id} 
+                  className={cn(
+                    "hover:bg-muted/50 transition-colors",
+                    selectedIds.has(sale.id) && "bg-primary/5 hover:bg-primary/10"
+                  )}
+                >
+                  {isSelectionMode && (
                     <TableCell>
-                      <span className="font-semibold text-foreground">{customer?.name}</span>
+                      <Checkbox 
+                        checked={selectedIds.has(sale.id)}
+                        onCheckedChange={() => toggleSelection(sale.id)}
+                      />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm line-clamp-1 text-foreground">{product?.name}</span>
-                        <ArrowUpRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {sale.date}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-xs text-foreground">
-                        {sale.paymentMethod.includes('Card') ? <CreditCard className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
-                        {sale.paymentMethod}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-bold text-primary">${sale.amount.toLocaleString()}</span>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {sales.length === 0 && (
+                  )}
+                  <TableCell className="font-mono text-xs font-medium text-muted-foreground">
+                    #{sale.id.slice(0, 8)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm line-clamp-1 text-foreground">Sale Record</span>
+                      <ArrowUpRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(sale.createdAt).toLocaleDateString()}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-xs text-foreground">
+                      {sale.paymentMethod?.includes('Card') ? <CreditCard className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
+                      {sale.paymentMethod || 'Other'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className="font-bold text-primary">${(sale.totalAmount || 0).toLocaleString()}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(sales || []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isSelectionMode ? 7 : 6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={isSelectionMode ? 6 : 5} className="h-32 text-center text-muted-foreground">
                     No sales transactions recorded.
                   </TableCell>
                 </TableRow>

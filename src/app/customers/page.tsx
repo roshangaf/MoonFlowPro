@@ -43,8 +43,8 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
+import { collection, doc, query, where } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function CustomersPage() {
@@ -60,6 +60,16 @@ export default function CustomersPage() {
     }
   }, [user, isUserLoading, router])
 
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "businessUsers", user.uid)
+  }, [db, user?.uid])
+
+  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
+  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+
   const [searchQuery, setSearchQuery] = useState("")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -74,9 +84,11 @@ export default function CustomersPage() {
   })
 
   const customersQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
-    return collection(db, "customers")
-  }, [db, user])
+    if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "customers")
+    if (!companyId) return null
+    return query(collection(db, "customers"), where("companyId", "==", companyId))
+  }, [db, user, companyId, isSuperAdmin, isApproved])
 
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
 
@@ -122,13 +134,14 @@ export default function CustomersPage() {
       return
     }
 
-    if (!db) return
+    if (!db || !companyId) return
 
     const customerData = {
       firstName: newCustomer.firstName,
       lastName: newCustomer.lastName,
       email: newCustomer.email,
       phoneNumber: newCustomer.phoneNumber || "Not provided",
+      companyId: companyId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       totalSpent: 0
@@ -144,7 +157,7 @@ export default function CustomersPage() {
     })
   }
 
-  const isLoading = isUserLoading || customersLoading
+  const isLoading = isUserLoading || isProfileLoading || customersLoading
 
   if (isLoading) {
     return (
@@ -154,7 +167,7 @@ export default function CustomersPage() {
     )
   }
 
-  if (!user) return null
+  if (!user || !isApproved) return null
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
