@@ -14,11 +14,16 @@ import {
   X,
   TrendingUp,
   PackageCheck,
-  Loader2
+  Loader2,
+  Plus,
+  Search,
+  CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -37,11 +42,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc, query, where } from "firebase/firestore"
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc, query, where, addDoc } from "firebase/firestore"
+import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function SalesPage() {
   const router = useRouter()
@@ -66,6 +86,7 @@ export default function SalesPage() {
   const companyId = profile?.companyId
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
 
+  // Fetch Sales
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
     if (isSuperAdmin) return collection(db, "sales")
@@ -75,9 +96,83 @@ export default function SalesPage() {
 
   const { data: sales, isLoading: salesLoading } = useCollection(salesQuery)
 
+  // Fetch Customers and Products for recording new sale
+  const customersQuery = useMemoFirebase(() => {
+    if (!db || !companyId || isSuperAdmin) return null
+    return query(collection(db, "customers"), where("companyId", "==", companyId))
+  }, [db, companyId, isSuperAdmin])
+  
+  const productsQuery = useMemoFirebase(() => {
+    if (!db || !companyId || isSuperAdmin) return null
+    return query(collection(db, "products"), where("companyId", "==", companyId), where("lifecycleStatus", "!=", "Sold"))
+  }, [db, companyId, isSuperAdmin])
+
+  const { data: customers } = useCollection(customersQuery)
+  const { data: products } = useCollection(productsQuery)
+
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newSale, setNewSale] = useState({
+    customerId: "",
+    productId: "",
+    amount: "",
+    paymentMethod: "Credit Card",
+    paymentStatus: "Completed"
+  })
+
+  const handleRecordSale = () => {
+    if (!newSale.customerId || !newSale.productId || !newSale.amount) {
+      toast({ title: "Missing Fields", description: "Please select customer, product and enter amount.", variant: "destructive" })
+      return
+    }
+
+    if (!db || !companyId) return
+
+    const saleData = {
+      customerId: newSale.customerId,
+      productId: newSale.productId,
+      totalAmount: Number(newSale.amount),
+      paymentMethod: newSale.paymentMethod,
+      paymentStatus: newSale.paymentStatus,
+      companyId: companyId,
+      createdAt: new Date().toISOString(),
+      saleDate: new Date().toISOString(),
+    }
+
+    // Add Sale
+    addDocumentNonBlocking(collection(db, "sales"), saleData)
+
+    // Mark Product as Sold
+    updateDocumentNonBlocking(doc(db, "products", newSale.productId), {
+      lifecycleStatus: "Sold",
+      updatedAt: new Date().toISOString()
+    })
+
+    // Update Customer Lifetime Value (Simplified logic for demo)
+    const customer = customers?.find(c => c.id === newSale.customerId)
+    if (customer) {
+      updateDocumentNonBlocking(doc(db, "customers", customer.id), {
+        totalSpent: (customer.totalSpent || 0) + Number(newSale.amount),
+        updatedAt: new Date().toISOString()
+      })
+    }
+
+    setIsAddDialogOpen(false)
+    setNewSale({ customerId: "", productId: "", amount: "", paymentMethod: "Credit Card", paymentStatus: "Completed" })
+    toast({ title: "Sale Recorded", description: "The transaction has been logged and inventory updated." })
+  }
+
+  const handleDelete = () => {
+    if (deleteId && db) {
+      deleteDocumentNonBlocking(doc(db, "sales", deleteId))
+      setDeleteId(null)
+      toast({ title: "Sale Deleted", variant: "destructive" })
+    }
+  }
 
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds)
@@ -166,8 +261,8 @@ export default function SalesPage() {
               >
                 <Trash2 className="h-4 w-4" /> Clear
               </Button>
-              <Button variant="outline" className="flex-1 md:flex-none gap-2">
-                <Download className="h-4 w-4" /> Export Report
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg flex-1 md:flex-none gap-2" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4" /> Record New Sale
               </Button>
             </>
           )}
@@ -242,6 +337,7 @@ export default function SalesPage() {
                 <TableHead className="font-semibold text-center min-w-[120px] text-foreground">Date</TableHead>
                 <TableHead className="font-semibold min-w-[140px] text-foreground">Method</TableHead>
                 <TableHead className="font-semibold text-right min-w-[120px] text-foreground">Amount</TableHead>
+                {!isSelectionMode && <TableHead className="w-[50px]"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -285,11 +381,18 @@ export default function SalesPage() {
                   <TableCell className="text-right">
                     <span className="font-bold text-primary">${(sale.totalAmount || 0).toLocaleString()}</span>
                   </TableCell>
+                  {!isSelectionMode && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(sale.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {(sales || []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isSelectionMode ? 6 : 5} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={isSelectionMode ? 7 : 6} className="h-32 text-center text-muted-foreground">
                     No sales transactions recorded.
                   </TableCell>
                 </TableRow>
@@ -299,18 +402,87 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* Record New Sale Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Record New Sale</DialogTitle>
+            <DialogDescription>
+              Log a transaction and update your inventory status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Target Customer</Label>
+              <Select onValueChange={(v) => setNewSale({...newSale, customerId: v})} value={newSale.customerId}>
+                <SelectTrigger><SelectValue placeholder="Select Customer" /></SelectTrigger>
+                <SelectContent>
+                  {customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>)}
+                  {customers?.length === 0 && <p className="p-2 text-xs text-muted-foreground">No customers found.</p>}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Product Sold</Label>
+              <Select onValueChange={(v) => setNewSale({...newSale, productId: v})} value={newSale.productId}>
+                <SelectTrigger><SelectValue placeholder="Select Product" /></SelectTrigger>
+                <SelectContent>
+                  {products?.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (SN: {p.serialNumber})</SelectItem>)}
+                  {products?.length === 0 && <p className="p-2 text-xs text-muted-foreground">No available inventory.</p>}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Amount ($)</Label>
+                <Input type="number" placeholder="0.00" value={newSale.amount} onChange={(e) => setNewSale({...newSale, amount: e.target.value})} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Method</Label>
+                <Select onValueChange={(v) => setNewSale({...newSale, paymentMethod: v})} value={newSale.paymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Credit Card">Credit Card</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button className="w-full" onClick={handleRecordSale}>Finalize Sale</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Individual Delete Confirm */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="w-[95vw] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
+            <AlertDialogDescription>This action is permanent and will remove the record from your database "for real".</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete FR</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
       <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
         <AlertDialogContent className="w-[95vw] rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedIds.size} Transactions?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to permanently remove these sales records. This cannot be undone and will affect your revenue summaries.
+              You are about to permanently remove these sales records from Firestore. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
             <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto">
-              Confirm Delete
+              Delete All FR
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
