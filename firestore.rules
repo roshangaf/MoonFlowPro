@@ -9,76 +9,68 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      // Check for document in /admins OR check for specific super-admin email
-      // We allow the specific email even if verification is pending for initial setup
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == 'roshanismean@gmail.com'
-      );
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'roshanismean@gmail.com';
     }
 
     // A user is "Staff" if they are signed in AND have been approved by an admin
     function isApprovedStaff() {
       return isSignedIn() && (
         get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true ||
-        isAdmin()
+        isSuperAdmin()
       );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data;
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Checks if the document belongs to the user's company or if the user is a super admin
+    function belongsToCompany(resourceData) {
+      return isSuperAdmin() || (isApprovedStaff() && resourceData.companyId == getUserData().companyId);
+    }
+
     // --- COLLECTION RULES ---
 
     match /businessUsers/{userId} {
-      // Users can see their own profile even if not approved (to see "Pending" status)
-      allow get: if isOwner(userId) || isApprovedStaff() || isAdmin();
-      // Allow any signed-in staff to see the team list (read-only)
-      allow list: if isSignedIn();
+      allow get: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && (query.limit <= 100)); // Super admin can list all, others limited or filtered in code
       
-      // Allow initial registration. Super admin is auto-approved in code logic.
       allow create: if isOwner(userId);
-      
-      // Only admins can approve or change other people's status
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId && getUserData().role == 'admin');
+      allow delete: if isSuperAdmin();
     }
 
     match /admins/{userId} {
-      // Allow any signed-in user to check if they are an admin
-      allow get: if isSignedIn();
-      // Allow listing admins for any signed-in user so the Team page works
-      allow list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin();
     }
 
     match /customers/{customerId} {
-      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      allow create: if isApprovedStaff();
+      allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
-      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      allow create: if isApprovedStaff();
+      allow get, list, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
-        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
-      }
-      match /warranties/{warrantyId} {
-        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+        allow get, list, create, update, delete: if isApprovedStaff();
       }
     }
 
     match /sales/{saleId} {
-      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
-      
-      match /saleItems/{saleItemId} {
-        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
-      }
+      allow create: if isApprovedStaff();
+      allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /reminders/{reminderId} {
-      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      allow get, list, create, update, delete: if belongsToCompany(resource.data);
     }
   }
 }

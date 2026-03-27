@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeftRight, Lock, Mail, Loader2, UserPlus, LogIn, AlertCircle } from "lucide-react"
+import { ArrowLeftRight, Lock, Mail, Loader2, UserPlus, LogIn, AlertCircle, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -23,6 +23,7 @@ function LoginPageContent() {
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   const router = useRouter()
@@ -53,11 +54,18 @@ function LoginPageContent() {
           if (db && cred.user) {
             const isSuperAdmin = email === 'roshanismean@gmail.com'
             
+            // For a new signup, the companyId is the user's UID (they are the creator)
+            // Unless they are joining via an invite (future feature), they start a new company.
+            const companyId = cred.user.uid;
+
             setDocumentNonBlocking(doc(db, "businessUsers", cred.user.uid), {
               id: cred.user.uid,
               firstName,
               lastName,
               email,
+              companyName: isSuperAdmin ? "MoonFlowPro System" : companyName,
+              companyId: isSuperAdmin ? "system" : companyId,
+              role: isSuperAdmin ? "super-admin" : "admin",
               approved: isSuperAdmin,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
@@ -73,7 +81,7 @@ function LoginPageContent() {
               title: "Registration Successful",
               description: isSuperAdmin 
                 ? "Admin profile created. You have full access." 
-                : "Your profile has been created and is pending administrator approval.",
+                : "Your company profile has been created and is pending activation.",
             })
           }
         })
@@ -130,27 +138,36 @@ function LoginPageContent() {
         </div>
 
         <Card className="border-none shadow-2xl overflow-hidden">
-          <CardHeader className="bg-slate-50/50">
+          <CardHeader className="bg-slate-50/50 dark:bg-card">
             <CardTitle className="text-xl flex items-center gap-2">
-              {isSignUp ? <><UserPlus className="h-5 w-5" /> Staff Registration</> : <><LogIn className="h-5 w-5" /> Business Sign In</>}
+              {isSignUp ? <><UserPlus className="h-5 w-5" /> Company Registration</> : <><LogIn className="h-5 w-5" /> Business Sign In</>}
             </CardTitle>
             <CardDescription>
-              {isSignUp ? "Create your profile. Note: Admin approval is required before you can access business data." : "Enter your credentials to access your business dashboard."}
+              {isSignUp ? "Register your business and create your admin profile." : "Enter your credentials to access your company dashboard."}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAuth}>
             <CardContent className="space-y-4 pt-6">
               {isSignUp && (
-                <div className="grid grid-cols-2 gap-4">
+                <>
                   <div className="space-y-2">
-                    <Label htmlFor="fname">First Name</Label>
-                    <Input id="fname" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input id="companyName" placeholder="Acme Corp" className="pl-10" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lname">Last Name</Label>
-                    <Input id="lname" placeholder="Smith" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fname">First Name</Label>
+                      <Input id="fname" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lname">Last Name</Label>
+                      <Input id="lname" placeholder="Smith" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                    </div>
                   </div>
-                </div>
+                </>
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -183,10 +200,10 @@ function LoginPageContent() {
               </div>
 
               {isSignUp && email !== 'roshanismean@gmail.com' && (
-                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex gap-3 mt-2">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-900/50 flex gap-3 mt-2">
                   <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-                  <p className="text-xs text-amber-700 leading-tight">
-                    By registering, you agree that your account will remain inactive until an administrator verifies your identity and approves access.
+                  <p className="text-xs text-amber-700 dark:text-amber-400 leading-tight">
+                    By registering, you agree that your company account will remain pending until verified.
                   </p>
                 </div>
               )}
@@ -199,10 +216,10 @@ function LoginPageContent() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {isSignUp ? "Creating Profile..." : "Authenticating..."}
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {isSignUp ? "Registering..." : "Authenticating..."}
                   </>
                 ) : (
-                  isSignUp ? "Register Account" : "Sign In to Dashboard"
+                  isSignUp ? "Create Company Account" : "Sign In to Dashboard"
                 )}
               </Button>
               <Button 
@@ -211,7 +228,7 @@ function LoginPageContent() {
                 className="text-primary font-bold" 
                 onClick={() => setIsSignUp(!isSignUp)}
               >
-                {isSignUp ? "Already have an account? Sign In" : "New member? Join Team"}
+                {isSignUp ? "Already registered? Sign In" : "New business? Register Company"}
               </Button>
             </CardFooter>
           </form>

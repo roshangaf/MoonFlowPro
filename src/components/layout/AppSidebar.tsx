@@ -1,3 +1,4 @@
+
 "use client"
 
 import { 
@@ -9,7 +10,7 @@ import {
   Settings,
   ArrowLeftRight,
   LogOut,
-  UserCog
+  Building2
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -34,7 +35,7 @@ const menuItems = [
   { title: "Customers", icon: Users, url: "/customers" },
   { title: "Sales", icon: BadgeDollarSign, url: "/sales" },
   { title: "AI Reminders", icon: BellRing, url: "/reminders" },
-  { title: "Team", icon: UserCog, url: "/team" },
+  { title: "Company", icon: Building2, url: "/team" },
   { title: "Settings", icon: Settings, url: "/settings" },
 ]
 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -67,7 +68,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, query, where } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 type ProductStatus = 'Received' | 'In Repair' | 'Tested' | 'Listed' | 'Sold';
@@ -85,7 +86,7 @@ const getStatusColor = (status: string) => {
 
 const ALL_STATUSES: ProductStatus[] = ['Received', 'In Repair', 'Tested', 'Listed', 'Sold']
 const FILTER_STATUSES = ['All', ...ALL_STATUSES]
-const DEFAULT_LOCATIONS = ["Main Warehouse", "Secondary Showroom", "Austin Branch"]
+const DEFAULT_LOCATIONS = ["Main Warehouse"]
 
 export default function InventoryPage() {
   const router = useRouter()
@@ -124,7 +125,7 @@ export default function InventoryPage() {
     serialNumber: "",
   })
 
-  // Fetch Profile for Inventory Locations
+  // Fetch Profile for Company Info
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "businessUsers", user.uid)
@@ -132,11 +133,15 @@ export default function InventoryPage() {
 
   const { data: profile } = useDoc(profileRef)
   const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
+  const companyId = profile?.companyId
 
   const productsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
-    return collection(db, "products")
-  }, [db, user])
+    if (!db || !user || !companyId) return null
+    // If super admin, they might want to see everything, but usually company context is better
+    const colRef = collection(db, "products");
+    if (user.email === 'roshanismean@gmail.com') return query(colRef);
+    return query(colRef, where("companyId", "==", companyId))
+  }, [db, user, companyId])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 
@@ -225,7 +230,7 @@ export default function InventoryPage() {
   }
 
   const handleAddProduct = () => {
-    if (!newItem.name || !newItem.purchaseCost || !db) return
+    if (!newItem.name || !newItem.purchaseCost || !db || !companyId) return
 
     const productData = {
       name: newItem.name,
@@ -234,6 +239,7 @@ export default function InventoryPage() {
       purchaseCost: Number(newItem.purchaseCost),
       serialNumber: newItem.serialNumber || `SN-${Math.floor(Math.random() * 100000)}`,
       location: currentInventory,
+      companyId: companyId,
       purchaseDate: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

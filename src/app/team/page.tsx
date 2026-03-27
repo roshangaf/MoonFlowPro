@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Check
+  Check,
+  Building2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -39,10 +40,10 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, query, where } from "firebase/firestore"
 import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
-export default function TeamPage() {
+export default function CompanyPage() {
   const router = useRouter()
   const { user: currentUser, isUserLoading } = useUser()
   const db = useFirestore()
@@ -57,10 +58,21 @@ export default function TeamPage() {
     }
   }, [currentUser, isUserLoading, router])
 
+  // Fetch Current User's Profile for Company Filtering
+  const currentUserProfileRef = useMemoFirebase(() => {
+    if (!db || !currentUser?.uid) return null
+    return doc(db, "businessUsers", currentUser.uid)
+  }, [db, currentUser?.uid])
+
+  const { data: profile } = useDoc(currentUserProfileRef)
+  const isSuperAdmin = currentUser?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId
+
   const usersQuery = useMemoFirebase(() => {
-    if (!db || !currentUser) return null
-    return collection(db, "businessUsers")
-  }, [db, currentUser])
+    if (!db || !currentUser || !companyId) return null
+    if (isSuperAdmin) return collection(db, "businessUsers");
+    return query(collection(db, "businessUsers"), where("companyId", "==", companyId))
+  }, [db, currentUser, companyId, isSuperAdmin])
 
   const adminsQuery = useMemoFirebase(() => {
     if (!db || !currentUser) return null
@@ -70,20 +82,12 @@ export default function TeamPage() {
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery)
   const { data: admins, isLoading: adminsLoading } = useCollection(adminsQuery)
 
-  // Explicit check for current user's admin role
-  const adminDocRef = useMemoFirebase(() => {
-    if (!db || !currentUser?.uid) return null
-    return doc(db, "admins", currentUser.uid)
-  }, [db, currentUser?.uid])
-  
-  const { data: adminDoc } = useDoc(adminDocRef)
-
   const checkIsAdmin = (userId: string, email?: string) => {
     if (email === 'roshanismean@gmail.com') return true
     return (admins || []).some(admin => admin.id === userId)
   }
 
-  const isCurrentUserAdmin = (currentUser?.email === 'roshanismean@gmail.com') || !!adminDoc
+  const isCurrentUserAdmin = isSuperAdmin || profile?.role === 'admin'
 
   const handleToggleAdmin = (userId: string, currentStatus: boolean, userEmail?: string) => {
     if (!db) return
@@ -92,7 +96,6 @@ export default function TeamPage() {
       return
     }
     
-    // Prevent removing super admin status
     if (userEmail === 'roshanismean@gmail.com') {
       toast({ title: "Action Restricted", description: "Primary administrator roles cannot be modified.", variant: "destructive" })
       return
@@ -102,9 +105,11 @@ export default function TeamPage() {
     
     if (currentStatus) {
       deleteDocumentNonBlocking(adminRef)
+      updateDocumentNonBlocking(doc(db, "businessUsers", userId), { role: 'staff' })
       toast({ title: "Role Updated", description: "Administrator privileges removed." })
     } else {
       setDocumentNonBlocking(adminRef, { createdAt: new Date().toISOString() }, { merge: true })
+      updateDocumentNonBlocking(doc(db, "businessUsers", userId), { role: 'admin' })
       toast({ title: "Role Updated", description: "User promoted to Administrator." })
     }
   }
@@ -160,12 +165,15 @@ export default function TeamPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Team Management</h1>
-          <p className="text-muted-foreground font-body">Manage staff access levels and system permissions.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-primary font-headline flex items-center gap-2">
+            <Building2 className="h-8 w-8" />
+            Company Management
+          </h1>
+          <p className="text-muted-foreground font-body">Manage company members and access levels for {profile?.companyName || "Your Company"}.</p>
         </div>
         {isCurrentUserAdmin && (
           <Button className="bg-primary hover:bg-primary/90 shadow-lg gap-2" onClick={() => setIsInviteOpen(true)}>
-            <UserPlus className="h-4 w-4" /> Invite New Staff
+            <UserPlus className="h-4 w-4" /> Add Company Member
           </Button>
         )}
       </div>
@@ -177,17 +185,12 @@ export default function TeamPage() {
               <AlertCircle className="h-5 w-5" />
               <h2>Pending Approvals ({pendingUsers.length})</h2>
             </div>
-            {pendingUsers.length === 0 && (
-              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-                <Check className="h-3 w-3 mr-1" /> All profiles approved
-              </Badge>
-            )}
           </div>
           
           <div className="grid gap-4">
             {pendingUsers.length > 0 ? (
               pendingUsers.map((user) => (
-                <Card key={user.id} className="border-amber-200 bg-amber-50/30 shadow-sm overflow-hidden">
+                <Card key={user.id} className="border-amber-200 bg-amber-50/30 dark:bg-amber-900/10 shadow-sm overflow-hidden">
                   <CardContent className="p-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-10 w-10 border border-amber-200">
@@ -222,7 +225,7 @@ export default function TeamPage() {
               ))
             ) : (
               <div className="h-24 flex items-center justify-center border-2 border-dashed rounded-xl text-muted-foreground text-sm italic">
-                No staff members are currently waiting for approval.
+                No new members are currently waiting for approval.
               </div>
             )}
           </div>
@@ -231,16 +234,16 @@ export default function TeamPage() {
         <div className="p-4 bg-secondary/30 rounded-xl border flex gap-3">
           <Shield className="h-5 w-5 text-primary shrink-0" />
           <p className="text-sm text-muted-foreground italic">
-            You are currently viewing the team directory as a Staff Member. Administrative controls for approvals and role management are hidden.
+            You are currently viewing the company directory as a Member. Administrative controls are restricted.
           </p>
         </div>
       )}
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">Active Team Members</h2>
+        <h2 className="text-lg font-bold text-primary">Active Members</h2>
         <div className="grid gap-6">
           {activeUsers?.map((user) => (
-            <Card key={user.id} className="border-none shadow-sm overflow-hidden group">
+            <Card key={user.id} className="border-none shadow-sm overflow-hidden group bg-card">
               <CardContent className="p-0">
                 <div className="flex items-center p-6 gap-4">
                   <Avatar className="h-12 w-12 border-2 border-secondary">
@@ -252,11 +255,11 @@ export default function TeamPage() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-lg truncate">{user.firstName} {user.lastName}</h3>
                       {checkIsAdmin(user.id, user.email) ? (
-                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 gap-1 px-2 py-0">
-                          <ShieldCheck className="h-3 w-3" /> Admin
+                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 gap-1 px-2 py-0">
+                          <ShieldCheck className="h-3 w-3" /> Company Admin
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">Staff Member</Badge>
+                        <Badge variant="secondary" className="text-xs">Company Member</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
@@ -264,7 +267,7 @@ export default function TeamPage() {
                         <Mail className="h-3 w-3" /> {user.email}
                       </div>
                       <div className="text-xs font-mono bg-secondary/30 px-1.5 py-0.5 rounded">
-                        UID: {user.id.slice(0, 8)}...
+                        ID: {user.id.slice(0, 8)}...
                       </div>
                     </div>
                   </div>
@@ -288,13 +291,13 @@ export default function TeamPage() {
                           </DropdownMenuItem>
                           {user.email !== 'roshanismean@gmail.com' && (
                             <DropdownMenuItem onClick={() => handleToggleApproval(user.id, true)} className="text-amber-600">
-                              <XCircle className="h-4 w-4 mr-2" /> Revoke System Access
+                              <XCircle className="h-4 w-4 mr-2" /> Revoke Access
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
                           {user.email !== 'roshanismean@gmail.com' && (
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteUser(user.id, user.email)}>
-                              <Trash2 className="h-4 w-4 mr-2" /> Remove from Team
+                              <Trash2 className="h-4 w-4 mr-2" /> Remove from Company
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -313,10 +316,10 @@ export default function TeamPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" />
-              Invite New Staff Member
+              Add Company Member
             </DialogTitle>
             <DialogDescription>
-              New staff can register using the link below. Their access will remain suspended until you approve them.
+              Provide this registration link to your colleagues. They must register with their own email.
             </DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
@@ -327,17 +330,17 @@ export default function TeamPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong>Workflow:</strong> 1. Share link &rarr; 2. Staff registers &rarr; 3. You approve them in "Pending Approvals" &rarr; 4. They get access.
+              <strong>Note:</strong> New registrations for your company will appear in your "Pending Approvals" list.
             </p>
           </div>
           <DialogFooter>
             <Button className="w-full gap-2" onClick={() => {
               const link = typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'
               navigator.clipboard.writeText(link)
-              toast({ title: "Link Copied", description: "Share this link with your team." })
+              toast({ title: "Link Copied", description: "Share this link with your colleagues." })
               setIsInviteOpen(false)
             }}>
-              <ExternalLink className="h-4 w-4" /> Copy Invite Link
+              <ExternalLink className="h-4 w-4" /> Copy Registration Link
             </Button>
           </DialogFooter>
         </DialogContent>
