@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState } from "react"
 import { 
   Sparkles, 
   Send, 
@@ -186,7 +186,7 @@ export default function RemindersPage() {
                   {reminderResult.reminderType.toUpperCase()}
                 </Badge>
               </div>
-              <CardContent className="p-8 space-y-6 bg-white">
+              <CardContent className="p-8 space-y-6 bg-card">
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Subject Line</p>
                   <p className="text-lg font-bold text-primary leading-snug">{reminderResult.reminderSubject}</p>
@@ -199,11 +199,14 @@ export default function RemindersPage() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-slate-50 border-t p-6 gap-3">
-                <Button variant="outline" className="flex-1 h-11 gap-2" onClick={handleCopy}>
-                  <Copy className="h-4 w-4" /> Copy Content
+              <CardFooter className="bg-muted/50 border-t p-6 gap-3 flex-col sm:flex-row">
+                <Button variant="outline" className="w-full sm:flex-1 h-11 gap-2" onClick={handleCopy}>
+                  <
+
+
+Copy className="h-4 w-4" /> Copy Content
                 </Button>
-                <Button className="flex-1 h-11 bg-accent hover:bg-accent/90 text-accent-foreground shadow-sm gap-2">
+                <Button className="w-full sm:flex-1 h-11 bg-accent hover:bg-accent/90 text-accent-foreground shadow-sm gap-2">
                   <Send className="h-4 w-4" /> Finalize & Send
                 </Button>
               </CardFooter>

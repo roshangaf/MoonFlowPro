@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -277,8 +276,8 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6 md:space-y-8 animate-in slide-in-from-bottom-2 duration-500 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="space-y-1 text-center md:text-left">
+          <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
             <Badge variant="outline" className="border-primary text-primary bg-primary/5 px-2 py-0.5 flex gap-1.5 items-center">
               <Warehouse className="h-3 w-3" />
               {currentInventory}
@@ -432,7 +431,7 @@ export default function InventoryPage() {
                       "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer group",
                       currentInventory === name 
                         ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
-                        : "bg-background hover:bg-muted/50 hover:border-slate-300"
+                        : "bg-card hover:bg-muted/50 hover:border-slate-300"
                     )}
                     onClick={() => handleSwitchInventory(name)}
                   >

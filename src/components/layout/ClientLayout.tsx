@@ -115,19 +115,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <div className="flex min-h-screen w-full">
               <AppSidebar />
               <SidebarInset className="bg-background flex flex-col">
-                {/* Mobile Header */}
-                <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 md:hidden bg-white z-20">
+                {/* Mobile Header - Fixed visibility for dark mode and mobile responsiveness */}
+                <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 md:hidden bg-background sticky top-0 z-20">
                   <div className="flex items-center gap-3">
                     <SidebarTrigger className="-ml-1" />
                     <div className="flex items-center gap-2">
-                       <div className="h-7 w-7 bg-primary rounded flex items-center justify-center text-primary-foreground">
-                         <ArrowLeftRight className="h-4 w-4" />
+                       <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shadow-sm">
+                         <ArrowLeftRight className="h-5 w-5" />
                        </div>
-                       <span className="font-bold text-sm">MoonFlow</span>
+                       <span className="font-bold text-sm tracking-tight">MoonFlowPro</span>
                     </div>
                   </div>
                 </header>
-                <main className="flex-1 px-4 py-6 md:px-10 lg:px-12 max-w-7xl mx-auto w-full overflow-y-auto">
+                <main className="flex-1 px-4 py-6 md:px-10 lg:px-12 max-w-7xl mx-auto w-full">
                   {children}
                 </main>
               </SidebarInset>
