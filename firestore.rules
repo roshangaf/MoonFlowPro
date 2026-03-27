@@ -1,0 +1,82 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      // Check for document in /admins OR check for specific super-admin email
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'roshanismean@gmail.com'
+      );
+    }
+
+    // A user is "Staff" if they are signed in AND have been approved by an admin
+    function isApprovedStaff() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true ||
+        isAdmin()
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /businessUsers/{userId} {
+      // Users can see their own profile even if not approved (to see "Pending" status)
+      allow get: if isOwner(userId) || isApprovedStaff() || isAdmin();
+      allow list: if isApprovedStaff() || isAdmin();
+      
+      // Allow initial registration. Super admin is auto-approved in code logic.
+      allow create: if isOwner(userId);
+      
+      // Only admins can approve or change other people's status
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{userId} {
+      // Allow any signed-in user to check if they are an admin (for access control logic)
+      allow get: if isSignedIn();
+      // Allow listing admins only for approved staff or admins
+      allow list: if isApprovedStaff() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+    }
+
+    match /products/{productId} {
+      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      
+      match /repairLogs/{repairLogId} {
+        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      }
+      match /warranties/{warrantyId} {
+        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      }
+    }
+
+    match /sales/{saleId} {
+      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      
+      match /saleItems/{saleItemId} {
+        allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+      }
+    }
+
+    match /reminders/{reminderId} {
+      allow get, list, create, update, delete: if isApprovedStaff() || isAdmin();
+    }
+  }
+}

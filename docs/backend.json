@@ -1,0 +1,111 @@
+
+{
+  "entities": {
+    "StaffProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StaffProfile",
+      "type": "object",
+      "description": "Represents an internal staff member's profile and system status.",
+      "properties": {
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "approved": { "type": "boolean", "description": "Whether the user has been granted system access by an admin." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "firstName", "lastName", "email", "approved"]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer profile, storing contact details and information.",
+      "properties": {
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "firstName", "lastName", "email", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a single reconditioned item, tracking its details and lifecycle status.",
+      "properties": {
+        "id": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "purchaseDate": { "type": "string", "format": "date" },
+        "purchaseCost": { "type": "number" },
+        "currentCondition": { "type": "string" },
+        "lifecycleStatus": { "type": "string" },
+        "location": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "serialNumber", "name", "purchaseDate", "purchaseCost", "lifecycleStatus", "createdAt", "updatedAt"]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Records a complete sales transaction.",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "saleDate": { "type": "string", "format": "date-time" },
+        "totalAmount": { "type": "number" },
+        "paymentStatus": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerId", "saleDate", "totalAmount", "paymentStatus", "paymentMethod", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "anonymous"]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/businessUsers/{userId}",
+        "definition": {
+          "entityName": "StaffProfile",
+          "schema": { "$ref": "#/backend/entities/StaffProfile" },
+          "description": "Staff profile with approval status.",
+          "params": [{ "name": "userId", "description": "UID" }]
+        }
+      },
+      {
+        "path": "/admins/{userId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": { "type": "object" },
+          "description": "Admin access list.",
+          "params": [{ "name": "userId", "description": "UID" }]
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": { "$ref": "#/backend/entities/Customer" },
+          "description": "Customer list.",
+          "params": [{ "name": "customerId", "description": "CID" }]
+        }
+      }
+    ]
+  }
+}

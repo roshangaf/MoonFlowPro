@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 15% 96%;
+    --foreground: 240 30% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 30% 15%;
+    --primary: 240 50% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 15% 90%;
+    --secondary-foreground: 240 50% 30%;
+    --muted: 240 10% 67%;
+    --muted-foreground: 240 10% 40%;
+    --accent: 208 100% 66%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 15% 85%;
+    --input: 240 15% 85%;
+    --ring: 208 100% 66%;
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 30% 15%;
+    --sidebar-primary: 240 50% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 15% 96%;
+    --sidebar-accent-foreground: 240 50% 30%;
+    --sidebar-border: 240 15% 90%;
+    --sidebar-ring: 208 100% 66%;
+  }
+  .dark {
+    --background: 240 35% 3%;
+    --foreground: 0 0% 98%;
+    --card: 240 35% 5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 35% 5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 208 100% 66%;
+    --primary-foreground: 240 50% 5%;
+    --secondary: 240 30% 10%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 20% 15%;
+    --muted-foreground: 240 10% 65%;
+    --accent: 208 100% 66%;
+    --accent-foreground: 240 50% 5%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 20% 12%;
+    --input: 240 20% 12%;
+    --ring: 208 100% 66%;
+
+    --sidebar-background: 240 35% 5%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 208 100% 66%;
+    --sidebar-primary-foreground: 240 50% 5%;
+    --sidebar-accent: 240 30% 10%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 20% 12%;
+    --sidebar-ring: 208 100% 66%;
+  }
+
+  /* High Contrast Mode Overrides */
+  .high-contrast {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 0 0% 0%;
+    --muted-foreground: 0 0% 20%;
+    --accent: 0 0% 0%;
+    --accent-foreground: 0 0% 100%;
+  }
+  .dark.high-contrast {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 0 0% 100%;
+    --muted-foreground: 0 0% 80%;
+    --accent: 0 0% 100%;
+    --accent-foreground: 0 0% 0%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+}
