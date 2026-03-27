@@ -40,7 +40,7 @@ export default function DashboardPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId || (isSuperAdmin ? "system" : profile?.id)
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : (profile?.id || user?.uid))
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
