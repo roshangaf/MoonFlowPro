@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -204,7 +205,7 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm">
+      <div className="flex items-center gap-4 bg-card p-4 rounded-xl shadow-sm border">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
@@ -243,7 +244,7 @@ export default function CustomersPage() {
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{customer.firstName} {customer.lastName}</h3>
+                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors text-foreground">{customer.firstName} {customer.lastName}</h3>
                       <p className="text-xs text-muted-foreground">Customer ID: {customer.id}</p>
                     </div>
                     <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100">Active Account</Badge>

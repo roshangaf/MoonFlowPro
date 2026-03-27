@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -143,7 +144,7 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <div className="bg-card p-6 rounded-2xl border shadow-sm">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-muted-foreground text-sm font-medium">Average Sale Value</p>
@@ -159,7 +160,7 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border shadow-sm">
+        <div className="bg-card p-6 rounded-2xl border shadow-sm">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-muted-foreground text-sm font-medium">Items Sold</p>
@@ -176,10 +177,10 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50/50">
+            <TableHeader className="bg-muted/50">
               <TableRow>
                 {isSelectionMode && (
                   <TableHead className="w-[50px]">
@@ -189,12 +190,12 @@ export default function SalesPage() {
                     />
                   </TableHead>
                 )}
-                <TableHead className="font-semibold min-w-[140px]">Transaction ID</TableHead>
-                <TableHead className="font-semibold min-w-[160px]">Customer</TableHead>
-                <TableHead className="font-semibold min-w-[200px]">Product</TableHead>
-                <TableHead className="font-semibold text-center min-w-[120px]">Date</TableHead>
-                <TableHead className="font-semibold min-w-[140px]">Method</TableHead>
-                <TableHead className="font-semibold text-right min-w-[120px]">Amount</TableHead>
+                <TableHead className="font-semibold min-w-[140px] text-foreground">Transaction ID</TableHead>
+                <TableHead className="font-semibold min-w-[160px] text-foreground">Customer</TableHead>
+                <TableHead className="font-semibold min-w-[200px] text-foreground">Product</TableHead>
+                <TableHead className="font-semibold text-center min-w-[120px] text-foreground">Date</TableHead>
+                <TableHead className="font-semibold min-w-[140px] text-foreground">Method</TableHead>
+                <TableHead className="font-semibold text-right min-w-[120px] text-foreground">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -205,7 +206,7 @@ export default function SalesPage() {
                   <TableRow 
                     key={sale.id} 
                     className={cn(
-                      "hover:bg-slate-50/50 transition-colors",
+                      "hover:bg-muted/50 transition-colors",
                       selectedIds.has(sale.id) && "bg-primary/5 hover:bg-primary/10"
                     )}
                   >
@@ -221,11 +222,11 @@ export default function SalesPage() {
                       #{sale.id}
                     </TableCell>
                     <TableCell>
-                      <span className="font-semibold">{customer?.name}</span>
+                      <span className="font-semibold text-foreground">{customer?.name}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm line-clamp-1">{product?.name}</span>
+                        <span className="text-sm line-clamp-1 text-foreground">{product?.name}</span>
                         <ArrowUpRight className="h-3 w-3 text-muted-foreground shrink-0" />
                       </div>
                     </TableCell>
@@ -236,7 +237,7 @@ export default function SalesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5 text-xs">
+                      <div className="flex items-center gap-1.5 text-xs text-foreground">
                         {sale.paymentMethod.includes('Card') ? <CreditCard className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
                         {sale.paymentMethod}
                       </div>

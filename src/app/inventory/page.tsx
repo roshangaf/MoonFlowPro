@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -312,7 +313,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder={`Search in ${currentInventory}...`} className="pl-10 h-10 border-input bg-background/50 focus:bg-background w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -337,16 +338,16 @@ export default function InventoryPage() {
         </DropdownMenu>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50/50">
+            <TableHeader className="bg-muted/50">
               <TableRow>
                 {isSelectionMode && <TableHead className="w-[50px]"></TableHead>}
-                <TableHead className="min-w-[200px] font-semibold">Product Details</TableHead>
-                <TableHead className="font-semibold text-center min-w-[140px]">Lifecycle Status</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">Condition</TableHead>
-                <TableHead className="font-semibold text-right min-w-[140px]">Acquisition Cost</TableHead>
+                <TableHead className="min-w-[200px] font-semibold text-foreground">Product Details</TableHead>
+                <TableHead className="font-semibold text-center min-w-[140px] text-foreground">Lifecycle Status</TableHead>
+                <TableHead className="font-semibold min-w-[120px] text-foreground">Condition</TableHead>
+                <TableHead className="font-semibold text-right min-w-[140px] text-foreground">Acquisition Cost</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -357,7 +358,7 @@ export default function InventoryPage() {
                 <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No items found.</TableCell></TableRow>
               ) : (
                 filteredProducts.map((product) => (
-                  <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-slate-50/50")}>
+                  <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-muted/50")}>
                     {isSelectionMode && (
                       <TableCell><Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} /></TableCell>
                     )}
@@ -431,7 +432,7 @@ export default function InventoryPage() {
                       "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer group",
                       currentInventory === name 
                         ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
-                        : "bg-background hover:bg-slate-50 hover:border-slate-300"
+                        : "bg-background hover:bg-muted/50 hover:border-slate-300"
                     )}
                     onClick={() => handleSwitchInventory(name)}
                   >
@@ -450,7 +451,7 @@ export default function InventoryPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className={cn("font-medium truncate", currentInventory === name && "text-primary")}>{name}</span>
+                        <span className={cn("font-medium truncate text-foreground", currentInventory === name && "text-primary")}>{name}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
