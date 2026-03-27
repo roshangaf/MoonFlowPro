@@ -126,7 +126,6 @@ export default function InventoryPage() {
 
   const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
   
-  // Robust companyId extraction
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : null)
   const isApproved = profile?.approved === true || isSuperAdmin
