@@ -127,8 +127,10 @@ export default function InventoryPage() {
   const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
-  const companyId = profile?.companyId || (isSuperAdmin ? "system" : null)
   const isApproved = profile?.approved === true || isSuperAdmin
+  
+  // Resilient companyId derivation
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : (profile?.id || user?.uid))
   const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
   const productsQuery = useMemoFirebase(() => {

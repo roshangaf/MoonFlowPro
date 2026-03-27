@@ -40,25 +40,28 @@ export default function DashboardPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : profile?.id)
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "products")
     if (!companyId) return null
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved])
+  }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const customersQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "customers")
     if (!companyId) return null
     return query(collection(db, "customers"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved])
+  }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved) return null
+    if (isSuperAdmin) return collection(db, "sales")
     if (!companyId) return null
     return query(collection(db, "sales"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved])
+  }, [db, user, companyId, isApproved, isSuperAdmin])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
@@ -67,7 +70,6 @@ export default function DashboardPage() {
   const activeInventory = (products || []).filter(p => p.lifecycleStatus !== 'Sold').length
   const totalSalesValue = (sales || []).reduce((sum, s) => sum + (s.totalAmount || 0), 0)
   const totalCustomers = (customers || []).length
-  const recentSales = [...(sales || [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
 
   const isLoading = isUserLoading || isProfileLoading || productsLoading || customersLoading || salesLoading
 
@@ -140,11 +142,11 @@ export default function DashboardPage() {
               <div className="p-2 bg-accent/5 rounded-lg">
                 <Clock className="h-6 w-6 text-accent" />
               </div>
-              <Badge variant="secondary" className="font-medium">Pending</Badge>
+              <Badge variant="secondary" className="font-medium">Active</Badge>
             </div>
             <div className="mt-4">
-              <p className="text-sm font-medium text-muted-foreground">Scheduled Reminders</p>
-              <h3 className="text-2xl font-bold text-foreground">0 Active</h3>
+              <p className="text-sm font-medium text-muted-foreground">System Status</p>
+              <h3 className="text-2xl font-bold text-foreground">Healthy</h3>
             </div>
           </CardContent>
         </Card>
@@ -154,8 +156,8 @@ export default function DashboardPage() {
         <Card className="lg:col-span-4 border-none shadow-sm bg-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-foreground">Recent Sales Activity</CardTitle>
-              <CardDescription>View latest transactions for {profile?.companyName}.</CardDescription>
+              <CardTitle className="text-foreground">Recent Transactions</CardTitle>
+              <CardDescription>View latest company activity.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/sales">View All <ChevronRight className="ml-1 h-4 w-4" /></Link>
@@ -163,14 +165,14 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {recentSales.map((sale) => (
+              {(sales || []).slice(0, 5).map((sale) => (
                 <div key={sale.id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center font-bold text-primary text-xs">
                       #{sale.id.slice(0, 3)}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Sale Transaction</p>
+                      <p className="text-sm font-semibold text-foreground">Sale Recorded</p>
                       <p className="text-xs text-muted-foreground">{new Date(sale.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -180,20 +182,20 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {recentSales.length === 0 && <p className="text-center text-muted-foreground text-sm py-10">No recent sales records found.</p>}
+              {(sales || []).length === 0 && <p className="text-center text-muted-foreground text-sm py-10">No recent transactions found.</p>}
             </div>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-3 border-none shadow-sm bg-card">
           <CardHeader>
-            <CardTitle className="text-foreground">Inventory Distribution</CardTitle>
-            <CardDescription>Current stock lifecycle breakdown.</CardDescription>
+            <CardTitle className="text-foreground">Stock Breakdown</CardTitle>
+            <CardDescription>Company lifecycle distribution.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">Active Stock</span>
+                <span className="font-medium text-foreground">Active Inventory</span>
                 <span className="text-muted-foreground">{activeInventory} items</span>
               </div>
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
@@ -203,7 +205,7 @@ export default function DashboardPage() {
             <div className="pt-4 border-t">
               <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
                 <Link href="/inventory" className="flex items-center justify-center gap-2">
-                  Manage Inventory <ArrowUpRight className="h-4 w-4" />
+                  Stock Overview <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>
             </div>
