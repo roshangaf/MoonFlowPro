@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -125,8 +126,9 @@ export default function InventoryPage() {
 
   const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
   
-  const companyId = profile?.companyId
+  // Robust companyId extraction
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : null)
   const isApproved = profile?.approved === true || isSuperAdmin
   const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
 
@@ -165,7 +167,11 @@ export default function InventoryPage() {
     }
 
     if (!db || !user || !companyId) {
-      toast({ title: "Error", description: "Company profile not fully loaded. Please try again.", variant: "destructive" });
+      toast({ 
+        title: "Initializing...", 
+        description: "Your business profile is still loading. Please try again in a moment.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -298,23 +304,23 @@ export default function InventoryPage() {
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {isSelectionMode ? (
             <>
-              <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }}>
+              <Button variant="ghost" className="h-11" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }}>
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
-              <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
+              <Button variant="destructive" className="h-11" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="border-destructive text-destructive" onClick={() => setIsSelectionMode(true)}>
+              <Button variant="outline" className="h-11 border-destructive text-destructive" onClick={() => setIsSelectionMode(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Clear
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add Bike
+              <Button className="h-11 shadow-lg" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add to Stock
               </Button>
-              <Button variant="outline" onClick={() => setIsSwitchDialogOpen(true)} className="col-span-2 sm:col-auto">
-                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch Warehouse
+              <Button variant="outline" className="h-11 col-span-2 sm:col-auto" onClick={() => setIsSwitchDialogOpen(true)}>
+                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch Location
               </Button>
             </>
           )}
@@ -333,7 +339,7 @@ export default function InventoryPage() {
         </div>
         
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-background/50">
+          <SelectTrigger className="w-full sm:w-[180px] bg-background/50 h-10">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -446,7 +452,7 @@ export default function InventoryPage() {
 
                 <div className="grid grid-cols-2 gap-4 py-2 border-y border-muted/50">
                   <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Investment</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total Investment</span>
                     <span className="text-lg font-bold text-primary">${totalInvest.toLocaleString()}</span>
                     {product.totalRepairCost > 0 && <span className="text-[9px] text-muted-foreground font-medium">Incl. ${product.totalRepairCost} Repairs</span>}
                   </div>
@@ -458,7 +464,7 @@ export default function InventoryPage() {
 
                 <div className="flex items-center gap-2 pt-1">
                   <Button variant="secondary" size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => setSelectedProductForRepair(product)}>
-                    <Wrench className="h-4 w-4" /> Repair Logs
+                    <Wrench className="h-4 w-4" /> Add Repair
                   </Button>
                   <Button variant="ghost" size="icon" className="w-10 h-10 text-destructive" onClick={() => setDeleteId(product.id)}>
                     <Trash2 className="h-5 w-5" />
