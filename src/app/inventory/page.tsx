@@ -75,12 +75,12 @@ type ProductStatus = 'Received' | 'In Repair' | 'Tested' | 'Listed' | 'Sold';
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Received': return 'bg-slate-100 text-slate-700 border-slate-200';
-    case 'In Repair': return 'bg-orange-100 text-orange-700 border-orange-200';
-    case 'Tested': return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'Listed': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'Sold': return 'bg-primary/10 text-primary border-primary/20';
-    default: return 'bg-gray-100';
+    case 'Received': return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800';
+    case 'In Repair': return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900';
+    case 'Tested': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900';
+    case 'Listed': return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900';
+    case 'Sold': return 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-foreground';
+    default: return 'bg-gray-100 dark:bg-gray-800';
   }
 }
 
@@ -137,8 +137,8 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !companyId) return null
-    // If super admin, they might want to see everything, but usually company context is better
     const colRef = collection(db, "products");
+    // Super admins can see all, but filtered by current context usually
     if (user.email === 'roshanismean@gmail.com') return query(colRef);
     return query(colRef, where("companyId", "==", companyId))
   }, [db, user, companyId])
@@ -292,28 +292,28 @@ export default function InventoryPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
           <p className="text-muted-foreground font-body text-sm md:text-base">Track your reconditioned items through their entire lifecycle.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {isSelectionMode ? (
-            <>
-              <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }} className="flex-1 md:flex-none gap-2">
+            <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
+              <Button variant="ghost" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }} className="gap-2">
                 <X className="h-4 w-4" /> Cancel
               </Button>
-              <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)} className="flex-1 md:flex-none gap-2 shadow-lg">
+              <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)} className="gap-2 shadow-lg">
                 <Trash2 className="h-4 w-4" /> Delete ({selectedIds.size})
               </Button>
-            </>
+            </div>
           ) : (
-            <>
-              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 flex-1 md:flex-none gap-2 shadow-sm" onClick={() => setIsSelectionMode(true)}>
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full md:w-auto">
+              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 gap-2 shadow-sm" onClick={() => setIsSelectionMode(true)}>
                 <Trash2 className="h-4 w-4" /> Clear
               </Button>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg flex-1 md:flex-none gap-2" onClick={() => setIsAddDialogOpen(true)}>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg gap-2" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4" /> New Item
               </Button>
-              <Button variant="outline" className="w-full md:w-auto flex gap-2 shadow-sm border-primary text-primary hover:bg-primary/5" onClick={() => setIsSwitchDialogOpen(true)}>
+              <Button variant="outline" className="col-span-2 sm:w-auto flex gap-2 shadow-sm border-primary text-primary hover:bg-primary/5" onClick={() => setIsSwitchDialogOpen(true)}>
                 <ArrowLeftRight className="h-4 w-4" /> Switch Location
               </Button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -321,7 +321,12 @@ export default function InventoryPage() {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={`Search in ${currentInventory}...`} className="pl-10 h-10 border-input bg-background/50 focus:bg-background w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <Input 
+            placeholder={`Search in ${currentInventory}...`} 
+            className="pl-10 h-10 border-input bg-background/50 focus:bg-background w-full" 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+          />
         </div>
         
         <DropdownMenu>
@@ -335,7 +340,11 @@ export default function InventoryPage() {
             <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {FILTER_STATUSES.map((status) => (
-              <DropdownMenuCheckboxItem key={status} checked={statusFilter === status} onCheckedChange={() => setStatusFilter(status)}>
+              <DropdownMenuCheckboxItem 
+                key={status} 
+                checked={statusFilter === status} 
+                onCheckedChange={() => setStatusFilter(status)}
+              >
                 {status}
               </DropdownMenuCheckboxItem>
             ))}
@@ -344,33 +353,43 @@ export default function InventoryPage() {
       </div>
 
       <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/10">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
                 {isSelectionMode && <TableHead className="w-[50px]"></TableHead>}
-                <TableHead className="min-w-[200px] font-semibold text-foreground">Product Details</TableHead>
-                <TableHead className="font-semibold text-center min-w-[140px] text-foreground">Lifecycle Status</TableHead>
-                <TableHead className="font-semibold min-w-[120px] text-foreground">Condition</TableHead>
-                <TableHead className="font-semibold text-right min-w-[140px] text-foreground">Acquisition Cost</TableHead>
+                <TableHead className="min-w-[220px] font-semibold text-foreground">Product Details</TableHead>
+                <TableHead className="font-semibold text-center min-w-[150px] text-foreground">Lifecycle Status</TableHead>
+                <TableHead className="font-semibold min-w-[130px] text-foreground">Condition</TableHead>
+                <TableHead className="font-semibold text-right min-w-[150px] text-foreground">Acquisition Cost</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
               ) : filteredProducts.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No items found.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    No items found.
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredProducts.map((product) => (
                   <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-muted/50")}>
                     {isSelectionMode && (
-                      <TableCell><Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} /></TableCell>
+                      <TableCell>
+                        <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
+                      </TableCell>
                     )}
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">{product.id}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono mt-1 opacity-70">ID: {product.id}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -382,8 +401,8 @@ export default function InventoryPage() {
                             </Badge>
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="center">
-                          <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+                        <DropdownMenuContent align="center" className="w-40">
+                          <DropdownMenuLabel className="text-xs">Update Status</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {ALL_STATUSES.map((status) => (
                             <DropdownMenuItem key={status} onClick={() => handleStatusChange(product.id, status)}>
@@ -393,15 +412,23 @@ export default function InventoryPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
-                    <TableCell><span className="text-sm text-muted-foreground">{product.currentCondition}</span></TableCell>
-                    <TableCell className="text-right font-bold text-primary">${product.purchaseCost}</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground font-medium">{product.currentCondition}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-primary">
+                      ${product.purchaseCost.toLocaleString()}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><MoreVertical className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setDeleteId(product.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleteId(product.id)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete Item
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -415,29 +442,29 @@ export default function InventoryPage() {
 
       {/* Switch Inventory Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ArrowLeftRight className="h-5 w-5 text-primary" />
-              Manage Inventory Locations
+              Inventory Locations
             </DialogTitle>
             <DialogDescription>
-              Switch between different warehouses or showrooms to manage localized stock.
+              Switch between different warehouses or showrooms.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto px-1">
+          <div className="py-4 space-y-6 overflow-y-auto px-1 flex-1">
             <div className="space-y-3">
-              <Label className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Available Locations</Label>
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Available Locations</Label>
               <div className="grid gap-2">
                 {availableInventories.map((name: string) => (
                   <div 
                     key={name}
                     className={cn(
-                      "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer group",
+                      "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group",
                       currentInventory === name 
                         ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
-                        : "bg-card hover:bg-muted/50 hover:border-slate-300"
+                        : "bg-card hover:bg-muted/50"
                     )}
                     onClick={() => handleSwitchInventory(name)}
                   >
@@ -456,15 +483,15 @@ export default function InventoryPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className={cn("font-medium truncate text-foreground", currentInventory === name && "text-primary")}>{name}</span>
+                        <span className={cn("font-bold truncate text-foreground", currentInventory === name && "text-primary")}>{name}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       {invToEdit === name ? (
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-emerald-600"
+                          className="h-8 w-8 text-emerald-600"
                           onClick={(e) => { e.stopPropagation(); handleRenameInventory(name, editingInvName) }}
                         >
                           <Check className="h-4 w-4" />
@@ -473,7 +500,7 @@ export default function InventoryPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7"
+                          className="h-8 w-8"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setInvToEdit(name); 
@@ -486,7 +513,7 @@ export default function InventoryPage() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-7 w-7 text-destructive"
+                        className="h-8 w-8 text-destructive"
                         disabled={availableInventories.length <= 1}
                         onClick={(e) => handleDeleteInventory(e, name)}
                       >
@@ -501,8 +528,8 @@ export default function InventoryPage() {
             <Separator />
 
             <div className="space-y-3">
-              <Label className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Create New Inventory location</Label>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Create New Location</Label>
+              <div className="flex flex-col gap-2">
                 <Input 
                   placeholder="e.g. Dallas Showroom" 
                   value={newInvName}
@@ -510,7 +537,7 @@ export default function InventoryPage() {
                   onKeyDown={(e) => e.key === 'Enter' && handleAddNewInventory()}
                   className="flex-1"
                 />
-                <Button variant="outline" onClick={handleAddNewInventory} className="flex gap-2 whitespace-nowrap">
+                <Button variant="secondary" onClick={handleAddNewInventory} className="flex gap-2 w-full font-bold">
                   <PlusCircle className="h-4 w-4" /> Add location
                 </Button>
               </div>
@@ -521,21 +548,21 @@ export default function InventoryPage() {
 
       {/* Add New Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-2xl">
+        <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Inventory Item</DialogTitle>
             <DialogDescription>
-              Record a new acquisition. It will be added to the {currentInventory} records.
+              Record a new acquisition for {currentInventory}.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-5 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Product Name / Model</Label>
+              <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Product Name / Model</Label>
               <Input id="name" placeholder="e.g. iPhone 14 Pro" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="status">Initial Status</Label>
+                <Label htmlFor="status" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Initial Status</Label>
                 <Select value={newItem.status} onValueChange={(v: ProductStatus) => setNewItem({...newItem, status: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -544,14 +571,26 @@ export default function InventoryPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="cost">Purchase Cost ($)</Label>
+                <Label htmlFor="cost" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Purchase Cost ($)</Label>
                 <Input id="cost" type="number" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: Number(e.target.value)})} />
               </div>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="condition" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Condition</Label>
+              <Select value={newItem.currentCondition} onValueChange={(v: string) => setNewItem({...newItem, currentCondition: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Excellent">Excellent</SelectItem>
+                  <SelectItem value="Good">Good</SelectItem>
+                  <SelectItem value="Fair">Fair</SelectItem>
+                  <SelectItem value="Poor">Poor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
             <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button onClick={handleAddProduct} className="bg-primary hover:bg-primary/90 w-full sm:w-auto">Add to Stock</Button>
+            <Button onClick={handleAddProduct} className="bg-primary hover:bg-primary/90 w-full sm:w-auto font-bold shadow-lg">Add to Stock</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
