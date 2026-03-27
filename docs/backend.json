@@ -49,6 +49,7 @@
         "category": { "type": "string" },
         "purchaseDate": { "type": "string", "format": "date" },
         "purchaseCost": { "type": "number" },
+        "totalRepairCost": { "type": "number", "default": 0 },
         "currentCondition": { "type": "string" },
         "lifecycleStatus": { "type": "string" },
         "location": { "type": "string" },
@@ -56,6 +57,20 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "serialNumber", "name", "purchaseDate", "purchaseCost", "lifecycleStatus", "createdAt", "updatedAt"]
+    },
+    "RepairLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RepairLog",
+      "type": "object",
+      "description": "Records a single repair or maintenance action on a product.",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "cost": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "performedBy": { "type": "string" }
+      },
+      "required": ["id", "description", "cost", "date"]
     },
     "Sale": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -104,6 +119,25 @@
           "schema": { "$ref": "#/backend/entities/Customer" },
           "description": "Customer list.",
           "params": [{ "name": "customerId", "description": "CID" }]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": { "$ref": "#/backend/entities/Product" },
+          "params": [{ "name": "productId", "description": "PID" }]
+        }
+      },
+      {
+        "path": "/products/{productId}/repairLogs/{logId}",
+        "definition": {
+          "entityName": "RepairLog",
+          "schema": { "$ref": "#/backend/entities/RepairLog" },
+          "params": [
+            { "name": "productId", "description": "PID" },
+            { "name": "logId", "description": "LID" }
+          ]
         }
       }
     ]

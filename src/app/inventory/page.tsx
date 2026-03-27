@@ -15,7 +15,10 @@ import {
   Trash2,
   X,
   Check,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Wrench,
+  History,
+  DollarSign
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,7 +71,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc, query, where } from "firebase/firestore"
+import { collection, doc, query, where, orderBy } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 type ProductStatus = 'Received' | 'In Repair' | 'Tested' | 'Listed' | 'Sold';
@@ -125,6 +128,11 @@ export default function InventoryPage() {
     serialNumber: "",
   })
 
+  // Repair Log State
+  const [selectedProductForRepair, setSelectedProductForRepair] = useState<any | null>(null)
+  const [repairDescription, setRepairDescription] = useState("")
+  const [repairCost, setRepairCost] = useState(0)
+
   // Fetch Profile for Company Info
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -138,12 +146,21 @@ export default function InventoryPage() {
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !companyId) return null
     const colRef = collection(db, "products");
-    // Super admins can see all, but filtered by current context usually
     if (user.email === 'roshanismean@gmail.com') return query(colRef);
     return query(colRef, where("companyId", "==", companyId))
   }, [db, user, companyId])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
+
+  const repairLogsQuery = useMemoFirebase(() => {
+    if (!db || !selectedProductForRepair?.id) return null
+    return query(
+      collection(db, "products", selectedProductForRepair.id, "repairLogs"),
+      orderBy("date", "desc")
+    )
+  }, [db, selectedProductForRepair?.id])
+
+  const { data: repairLogs, isLoading: repairsLoading } = useCollection(repairLogsQuery)
 
   const filteredProducts = (products || []).filter((product) => {
     const matchesSearch = (product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -230,13 +247,14 @@ export default function InventoryPage() {
   }
 
   const handleAddProduct = () => {
-    if (!newItem.name || !newItem.purchaseCost || !db || !companyId) return
+    if (!newItem.name || !db || !companyId) return
 
     const productData = {
       name: newItem.name,
       lifecycleStatus: newItem.status,
       currentCondition: newItem.currentCondition,
       purchaseCost: Number(newItem.purchaseCost),
+      totalRepairCost: 0,
       serialNumber: newItem.serialNumber || `SN-${Math.floor(Math.random() * 100000)}`,
       location: currentInventory,
       companyId: companyId,
@@ -258,6 +276,30 @@ export default function InventoryPage() {
       updatedAt: new Date().toISOString()
     })
     toast({ title: "Status Updated", description: `Item status changed to ${newStatus}.` })
+  }
+
+  const handleAddRepair = async () => {
+    if (!selectedProductForRepair || !repairDescription || !db) return
+
+    const logData = {
+      description: repairDescription,
+      cost: Number(repairCost),
+      date: new Date().toISOString(),
+      performedBy: user?.email || "Unknown"
+    }
+
+    const colRef = collection(db, "products", selectedProductForRepair.id, "repairLogs")
+    await addDocumentNonBlocking(colRef, logData)
+
+    const newTotalRepairCost = (selectedProductForRepair.totalRepairCost || 0) + Number(repairCost)
+    updateDocumentNonBlocking(doc(db, "products", selectedProductForRepair.id), {
+      totalRepairCost: newTotalRepairCost,
+      updatedAt: new Date().toISOString()
+    })
+
+    setRepairDescription("")
+    setRepairCost(0)
+    toast({ title: "Repair Recorded", description: `Added cost of $${repairCost} to ${selectedProductForRepair.name}.` })
   }
 
   const toggleSelection = (id: string) => {
@@ -379,66 +421,163 @@ export default function InventoryPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProducts.map((product) => (
-                  <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-muted/50")}>
-                    {isSelectionMode && (
+                filteredProducts.map((product) => {
+                  const totalInvestment = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
+                  return (
+                    <TableRow key={product.id} className={cn("group transition-colors", selectedIds.has(product.id) ? "bg-primary/5" : "hover:bg-muted/50")}>
+                      {isSelectionMode && (
+                        <TableCell>
+                          <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
+                        </TableCell>
+                      )}
                       <TableCell>
-                        <Checkbox checked={selectedIds.has(product.id)} onCheckedChange={() => toggleSelection(product.id)} />
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono mt-1 opacity-70">SN: {product.serialNumber}</span>
+                        </div>
                       </TableCell>
-                    )}
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-foreground line-clamp-1">{product.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono mt-1 opacity-70">ID: {product.id}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="outline-none">
-                            <Badge variant="outline" className={`${getStatusColor(product.lifecycleStatus)} px-3 py-1 font-medium border cursor-pointer`}>
-                              {product.lifecycleStatus}
-                            </Badge>
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="center" className="w-40">
-                          <DropdownMenuLabel className="text-xs">Update Status</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {ALL_STATUSES.map((status) => (
-                            <DropdownMenuItem key={status} onClick={() => handleStatusChange(product.id, status)}>
-                              {status}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground font-medium">{product.currentCondition}</span>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-primary">
-                      ${product.purchaseCost.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                            <MoreVertical className="h-4 w-4" />
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="outline-none">
+                              <Badge variant="outline" className={`${getStatusColor(product.lifecycleStatus)} px-3 py-1 font-medium border cursor-pointer`}>
+                                {product.lifecycleStatus}
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="center" className="w-40">
+                            <DropdownMenuLabel className="text-xs">Update Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {ALL_STATUSES.map((status) => (
+                              <DropdownMenuItem key={status} onClick={() => handleStatusChange(product.id, status)}>
+                                {status}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground font-medium">{product.currentCondition}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-bold text-primary">${totalInvestment.toLocaleString()}</span>
+                          {product.totalRepairCost > 0 && (
+                            <span className="text-[10px] text-muted-foreground">Incl. repairs: ${product.totalRepairCost}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => setSelectedProductForRepair(product)}
+                          >
+                            <Wrench className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setDeleteId(product.id)} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete Item
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => setDeleteId(product.id)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete Item
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {/* Repair Logs Dialog */}
+      <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
+        <DialogContent className="sm:max-w-[550px] w-[95vw] rounded-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-primary" />
+              Manage Repairs
+            </DialogTitle>
+            <DialogDescription>
+              Record maintenance and repairs for <strong>{selectedProductForRepair?.name}</strong>. This increases the cumulative cost of the item.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-6">
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary">New Repair Entry</h4>
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="repair-desc" className="text-[10px] font-bold text-muted-foreground">Work Performed</Label>
+                  <Input 
+                    id="repair-desc" 
+                    placeholder="e.g. Replaced battery, cleaned chain" 
+                    value={repairDescription}
+                    onChange={(e) => setRepairDescription(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 items-end">
+                  <div className="grid gap-2">
+                    <Label htmlFor="repair-cost" className="text-[10px] font-bold text-muted-foreground">Cost ($)</Label>
+                    <Input 
+                      id="repair-cost" 
+                      type="number" 
+                      placeholder="0.00"
+                      value={repairCost === 0 ? "" : repairCost}
+                      onChange={(e) => setRepairCost(e.target.value === "" ? 0 : Number(e.target.value))}
+                    />
+                  </div>
+                  <Button onClick={handleAddRepair} className="gap-2">
+                    <Plus className="h-4 w-4" /> Add Record
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <History className="h-3 w-3" />
+                  Repair History
+                </h4>
+                <Badge variant="secondary" className="font-bold">${selectedProductForRepair?.totalRepairCost || 0} Total Repairs</Badge>
+              </div>
+              
+              <div className="space-y-2">
+                {repairsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                ) : repairLogs?.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
+                    No repair records found for this item.
+                  </div>
+                ) : (
+                  repairLogs?.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">{log.description}</p>
+                        <p className="text-[10px] text-muted-foreground">{new Date(log.date).toLocaleDateString()} • By {log.performedBy}</p>
+                      </div>
+                      <div className="text-sm font-bold text-primary">
+                        +${log.cost.toLocaleString()}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Switch Inventory Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
@@ -558,7 +697,7 @@ export default function InventoryPage() {
           <div className="grid gap-5 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Product Name / Model</Label>
-              <Input id="name" placeholder="e.g. iPhone 14 Pro" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
+              <Input id="name" placeholder="e.g. Mountain Bike XT-200" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -572,7 +711,13 @@ export default function InventoryPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="cost" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Purchase Cost ($)</Label>
-                <Input id="cost" type="number" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: Number(e.target.value)})} />
+                <Input 
+                  id="cost" 
+                  type="number" 
+                  placeholder="0.00"
+                  value={newItem.purchaseCost === 0 ? "" : newItem.purchaseCost} 
+                  onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value === "" ? 0 : Number(e.target.value)})} 
+                />
               </div>
             </div>
             <div className="grid gap-2">
@@ -586,6 +731,10 @@ export default function InventoryPage() {
                   <SelectItem value="Poor">Poor</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="serial" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Serial Number / VIN</Label>
+              <Input id="serial" placeholder="Optional" value={newItem.serialNumber} onChange={(e) => setNewItem({...newItem, serialNumber: e.target.value})} />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 mt-2">
