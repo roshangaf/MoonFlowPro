@@ -5,15 +5,9 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { 
   UserPlus, 
-  Shield, 
-  ShieldCheck, 
   MoreVertical, 
   Loader2, 
-  Mail, 
   Trash2,
-  ExternalLink,
-  CheckCircle2,
-  XCircle,
   AlertCircle,
   Building2
 } from "lucide-react"
@@ -25,14 +19,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -40,7 +31,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
 import { collection, doc, query, where } from "firebase/firestore"
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function CompanyManagementPage() {
   const router = useRouter()
@@ -63,29 +54,17 @@ export default function CompanyManagementPage() {
 
   const { data: profile } = useDoc(currentUserProfileRef)
   const isSuperAdmin = currentUser?.email === 'roshanismean@gmail.com'
-  
-  // For super admin, we don't strictly need companyId to fetch ALL users
   const companyId = profile?.companyId
 
   const usersQuery = useMemoFirebase(() => {
     if (!db || !currentUser) return null
+    // The super admin should see all users in the system to manage approvals
     if (isSuperAdmin) return collection(db, "businessUsers");
     if (!companyId) return null;
     return query(collection(db, "businessUsers"), where("companyId", "==", companyId))
   }, [db, currentUser, companyId, isSuperAdmin])
 
-  const adminsQuery = useMemoFirebase(() => {
-    if (!db || !currentUser) return null
-    return collection(db, "admins")
-  }, [db, currentUser])
-
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery)
-  const { data: admins, isLoading: adminsLoading } = useCollection(adminsQuery)
-
-  const checkIsAdmin = (userId: string, email?: string) => {
-    if (email === 'roshanismean@gmail.com') return true
-    return (admins || []).some(admin => admin.id === userId)
-  }
 
   const isCurrentUserAdmin = isSuperAdmin || profile?.role === 'admin'
 
@@ -113,7 +92,7 @@ export default function CompanyManagementPage() {
     toast({ title: "User Removed", variant: "destructive" })
   }
 
-  const isLoading = isUserLoading || usersLoading || adminsLoading
+  const isLoading = isUserLoading || usersLoading
   const pendingUsers = (users || []).filter(u => !u.approved && u.email !== 'roshanismean@gmail.com')
   const activeUsers = (users || []).filter(u => u.approved || u.email === 'roshanismean@gmail.com')
 
@@ -190,7 +169,7 @@ export default function CompanyManagementPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold truncate">{user.firstName} {user.lastName}</h3>
-                    {checkIsAdmin(user.id, user.email) && <Badge className="bg-amber-100 text-amber-700 border-amber-200">Admin</Badge>}
+                    {(user.role === 'admin' || user.email === 'roshanismean@gmail.com') && <Badge className="bg-amber-100 text-amber-700 border-amber-200">Admin</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{user.email} • {user.companyName}</p>
                 </div>
@@ -215,7 +194,7 @@ export default function CompanyManagementPage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader><DialogTitle>Invite Member</DialogTitle></DialogHeader>
           <div className="py-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">Share this registration link with your team:</p>
+            <p className="text-sm text-muted-foreground">Share this registration link with your team to join your company:</p>
             <code className="block p-3 bg-muted rounded-lg text-xs break-all">{typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'}</code>
           </div>
           <DialogFooter>

@@ -46,7 +46,8 @@ service cloud.firestore {
     }
 
     match /admins/{userId} {
-      allow get, list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSuperAdmin();
       allow create, update, delete: if isSuperAdmin();
     }
 

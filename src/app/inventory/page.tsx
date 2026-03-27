@@ -7,18 +7,12 @@ import {
   Plus, 
   Search, 
   Filter, 
-  MoreVertical, 
   Warehouse,
-  PlusCircle,
-  Pencil,
-  Loader2,
-  Trash2,
-  X,
-  Check,
-  ArrowLeftRight,
+  Loader2, 
+  Trash2, 
+  X, 
+  ArrowLeftRight, 
   Wrench,
-  History,
-  DollarSign,
   Package
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -39,10 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -102,8 +93,6 @@ export default function InventoryPage() {
   const [currentInventory, setCurrentInventory] = useState("Main Warehouse")
   const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false)
   const [newInvName, setNewInvName] = useState("")
-  const [invToEdit, setInvToEdit] = useState<string | null>(null)
-  const [editingInvName, setEditingInvName] = useState("")
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
@@ -134,17 +123,18 @@ export default function InventoryPage() {
     return doc(db, "businessUsers", user.uid)
   }, [db, user?.uid])
 
-  const { data: profile } = useDoc(profileRef)
+  const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
   const companyId = profile?.companyId
+  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
   const availableInventories = profile?.inventoryLocations || DEFAULT_LOCATIONS
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
 
   const productsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
+    if (!db || !user || !isApproved) return null
     if (isSuperAdmin) return collection(db, "products");
     if (!companyId) return null;
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin])
+  }, [db, user, companyId, isSuperAdmin, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 
@@ -193,19 +183,6 @@ export default function InventoryPage() {
     toast({ title: "Location Added", description: `${newInvName} is now available.` })
   }
 
-  const handleRenameInventory = (oldName: string, newName: string) => {
-    const trimmedNewName = newName.trim()
-    if (!trimmedNewName || oldName === trimmedNewName) {
-      setInvToEdit(null)
-      return
-    }
-    const updated = availableInventories.map((n: string) => n === oldName ? trimmedNewName : n)
-    updateProfileLocations(updated)
-    if (currentInventory === oldName) setCurrentInventory(trimmedNewName)
-    setInvToEdit(null)
-    toast({ title: "Location Renamed", description: `Changed ${oldName} to ${trimmedNewName}` })
-  }
-
   const handleDeleteInventory = (e: React.MouseEvent, name: string) => {
     e.stopPropagation()
     if (availableInventories.length <= 1) {
@@ -245,7 +222,8 @@ export default function InventoryPage() {
 
     if (!db) return;
 
-    const finalCompanyId = companyId || (isSuperAdmin ? 'system' : user?.uid);
+    // Use the profile's companyId, or fall back to user UID (as company owner)
+    const finalCompanyId = companyId || user?.uid;
 
     if (!finalCompanyId) {
       toast({ title: "Error", description: "Company profile not found. Please refresh.", variant: "destructive" });
@@ -317,7 +295,7 @@ export default function InventoryPage() {
     setSelectedIds(newSelected)
   }
 
-  const isLoading = isUserLoading || productsLoading
+  const isLoading = isUserLoading || productsLoading || profileLoading
 
   if (isLoading) {
     return (
@@ -470,9 +448,14 @@ export default function InventoryPage() {
               )}
               <CardContent className={cn("p-4 flex flex-col gap-4", isSelectionMode && "pl-12")}>
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-foreground leading-tight">{product.name}</h3>
-                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">SN: {product.serialNumber}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-primary/5 rounded-lg flex items-center justify-center">
+                      <Package className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground leading-tight">{product.name}</h3>
+                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">SN: {product.serialNumber}</p>
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -515,7 +498,7 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Dialogs remain similar but ensure proper responsiveness */}
+      {/* Repair Logs Dialog */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           <div className="p-6 border-b bg-muted/30">
@@ -560,6 +543,7 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl">
           <DialogHeader>
@@ -573,7 +557,7 @@ export default function InventoryPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Purchase Cost ($)</Label>
-                <Input type="number" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} />
+                <Input type="number" placeholder="Enter cost" value={newItem.purchaseCost} onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label>Condition</Label>
@@ -598,6 +582,7 @@ export default function InventoryPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Warehouse Dialog */}
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
         <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl">
           <DialogHeader>

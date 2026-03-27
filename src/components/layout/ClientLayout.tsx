@@ -1,3 +1,4 @@
+
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -24,23 +25,16 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
     return doc(db, "businessUsers", user.uid)
   }, [db, user?.uid])
 
-  const adminRef = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return doc(db, "admins", user.uid)
-  }, [db, user?.uid])
-
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
-  const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef)
 
   const isLoginPage = pathname === "/"
   
   // Specific hardcoded check for the super admin email
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
-  const isAdmin = !!adminDoc || isSuperAdmin
-  const isApproved = (profile?.approved === true) || isAdmin
+  const isApproved = (profile?.approved === true) || isSuperAdmin
 
   // If user is logged in but not approved (and not an admin), and not on the login page
-  if (user && !isUserLoading && !isProfileLoading && !isAdminLoading && !isApproved && !isLoginPage) {
+  if (user && !isUserLoading && !isProfileLoading && !isApproved && !isLoginPage) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 md:p-6">
         <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -50,11 +44,11 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-primary font-headline">Pending Approval</h1>
             <p className="text-muted-foreground">
-              Hello, {profile?.firstName || 'User'}. Your account has been created successfully but requires administrator approval before you can access the MoonFlowPro dashboard.
+              Hello, {profile?.firstName || 'User'}. Your account for <strong>{profile?.companyName || 'your company'}</strong> has been created but requires administrator approval.
             </p>
           </div>
           <div className="p-4 bg-secondary/50 rounded-xl border">
-            <p className="text-sm font-medium">An email notification has been queued for the system administrator. You will be able to access the dashboard once they approve your request.</p>
+            <p className="text-sm font-medium">An email notification has been queued for the system administrator. Access will be granted shortly.</p>
           </div>
           <div className="space-y-3 pt-4">
             <Button 
@@ -71,10 +65,10 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
             
             <div className="mt-8 pt-6 border-t space-y-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                Admin? Manually add your UID to the /admins collection in Firestore
+                Admin Note
               </p>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">Your unique identifier:</span>
+                <span className="text-[10px] text-muted-foreground">User ID:</span>
                 <code className="bg-slate-100 p-2 rounded text-[10px] font-mono break-all select-all w-full">
                   {user.uid}
                 </code>
@@ -87,7 +81,7 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
   }
 
   // If loading user or profile
-  if (user && (isUserLoading || isProfileLoading || isAdminLoading)) {
+  if (user && (isUserLoading || isProfileLoading)) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -115,7 +109,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <div className="flex min-h-screen w-full">
               <AppSidebar />
               <SidebarInset className="bg-background flex flex-col">
-                {/* Mobile Header - Fixed visibility for dark mode and mobile responsiveness */}
                 <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 md:hidden bg-background sticky top-0 z-20">
                   <div className="flex items-center gap-3">
                     <SidebarTrigger className="-ml-1" />
