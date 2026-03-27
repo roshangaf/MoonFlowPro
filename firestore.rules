@@ -11,6 +11,7 @@ service cloud.firestore {
 
     function isAdmin() {
       // Check for document in /admins OR check for specific super-admin email
+      // We allow the specific email even if verification is pending for initial setup
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         request.auth.token.email == 'roshanismean@gmail.com'
@@ -34,7 +35,8 @@ service cloud.firestore {
     match /businessUsers/{userId} {
       // Users can see their own profile even if not approved (to see "Pending" status)
       allow get: if isOwner(userId) || isApprovedStaff() || isAdmin();
-      allow list: if isApprovedStaff() || isAdmin();
+      // Allow any signed-in staff to see the team list (read-only)
+      allow list: if isSignedIn();
       
       // Allow initial registration. Super admin is auto-approved in code logic.
       allow create: if isOwner(userId);
@@ -45,10 +47,10 @@ service cloud.firestore {
     }
 
     match /admins/{userId} {
-      // Allow any signed-in user to check if they are an admin (for access control logic)
+      // Allow any signed-in user to check if they are an admin
       allow get: if isSignedIn();
-      // Allow listing admins only for approved staff or admins
-      allow list: if isApprovedStaff() || isAdmin();
+      // Allow listing admins for any signed-in user so the Team page works
+      allow list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
