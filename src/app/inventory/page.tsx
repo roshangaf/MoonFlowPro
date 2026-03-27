@@ -124,14 +124,14 @@ export default function InventoryPage() {
     name: "",
     status: "Received" as ProductStatus,
     currentCondition: "Excellent",
-    purchaseCost: 0,
+    purchaseCost: "",
     serialNumber: "",
   })
 
   // Repair Log State
   const [selectedProductForRepair, setSelectedProductForRepair] = useState<any | null>(null)
   const [repairDescription, setRepairDescription] = useState("")
-  const [repairCost, setRepairCost] = useState(0)
+  const [repairCost, setRepairCost] = useState("")
 
   // Fetch Profile for Company Info
   const profileRef = useMemoFirebase(() => {
@@ -247,26 +247,39 @@ export default function InventoryPage() {
   }
 
   const handleAddProduct = () => {
-    if (!newItem.name || !db || !companyId) return
+    if (!newItem.name) {
+      toast({ title: "Required Field", description: "Please enter a product name.", variant: "destructive" });
+      return;
+    }
+
+    if (!db) return;
+
+    // Use companyId from profile, fallback to user uid if profile is still loading but required for Super Admin setup
+    const finalCompanyId = companyId || (user?.email === 'roshanismean@gmail.com' ? 'system' : user?.uid);
+
+    if (!finalCompanyId) {
+      toast({ title: "Error", description: "Company profile not found. Please refresh.", variant: "destructive" });
+      return;
+    }
 
     const productData = {
       name: newItem.name,
       lifecycleStatus: newItem.status,
       currentCondition: newItem.currentCondition,
-      purchaseCost: Number(newItem.purchaseCost),
+      purchaseCost: newItem.purchaseCost === "" ? 0 : Number(newItem.purchaseCost),
       totalRepairCost: 0,
       serialNumber: newItem.serialNumber || `SN-${Math.floor(Math.random() * 100000)}`,
       location: currentInventory,
-      companyId: companyId,
+      companyId: finalCompanyId,
       purchaseDate: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
 
-    addDocumentNonBlocking(collection(db, "products"), productData)
-    setIsAddDialogOpen(false)
-    setNewItem({ name: "", status: "Received", currentCondition: "Excellent", purchaseCost: 0, serialNumber: "" })
-    toast({ title: "Item Added", description: `${newItem.name} has been added to ${currentInventory}.` })
+    addDocumentNonBlocking(collection(db, "products"), productData);
+    setIsAddDialogOpen(false);
+    setNewItem({ name: "", status: "Received", currentCondition: "Excellent", purchaseCost: "", serialNumber: "" });
+    toast({ title: "Item Added", description: `${newItem.name} has been added to ${currentInventory}.` });
   }
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
@@ -279,11 +292,16 @@ export default function InventoryPage() {
   }
 
   const handleAddRepair = async () => {
-    if (!selectedProductForRepair || !repairDescription || !db) return
+    if (!selectedProductForRepair || !repairDescription || !db) {
+      toast({ title: "Missing Info", description: "Please enter a repair description.", variant: "destructive" });
+      return;
+    }
+
+    const costNum = repairCost === "" ? 0 : Number(repairCost);
 
     const logData = {
       description: repairDescription,
-      cost: Number(repairCost),
+      cost: costNum,
       date: new Date().toISOString(),
       performedBy: user?.email || "Unknown"
     }
@@ -291,15 +309,15 @@ export default function InventoryPage() {
     const colRef = collection(db, "products", selectedProductForRepair.id, "repairLogs")
     await addDocumentNonBlocking(colRef, logData)
 
-    const newTotalRepairCost = (selectedProductForRepair.totalRepairCost || 0) + Number(repairCost)
+    const newTotalRepairCost = (selectedProductForRepair.totalRepairCost || 0) + costNum
     updateDocumentNonBlocking(doc(db, "products", selectedProductForRepair.id), {
       totalRepairCost: newTotalRepairCost,
       updatedAt: new Date().toISOString()
     })
 
     setRepairDescription("")
-    setRepairCost(0)
-    toast({ title: "Repair Recorded", description: `Added cost of $${repairCost} to ${selectedProductForRepair.name}.` })
+    setRepairCost("")
+    toast({ title: "Repair Recorded", description: `Added cost of $${costNum} to ${selectedProductForRepair.name}.` })
   }
 
   const toggleSelection = (id: string) => {
@@ -533,8 +551,8 @@ export default function InventoryPage() {
                       id="repair-cost" 
                       type="number" 
                       placeholder="0.00"
-                      value={repairCost === 0 ? "" : repairCost}
-                      onChange={(e) => setRepairCost(e.target.value === "" ? 0 : Number(e.target.value))}
+                      value={repairCost}
+                      onChange={(e) => setRepairCost(e.target.value)}
                     />
                   </div>
                   <Button onClick={handleAddRepair} className="gap-2">
@@ -556,22 +574,22 @@ export default function InventoryPage() {
               <div className="space-y-2">
                 {repairsLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                ) : repairLogs?.length === 0 ? (
-                  <div className="text-center py-8 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-                    No repair records found for this item.
-                  </div>
-                ) : (
-                  repairLogs?.map((log) => (
+                ) : (repairLogs && repairLogs.length > 0) ? (
+                  repairLogs.map((log) => (
                     <div key={log.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
                       <div className="space-y-1">
                         <p className="text-sm font-semibold">{log.description}</p>
                         <p className="text-[10px] text-muted-foreground">{new Date(log.date).toLocaleDateString()} • By {log.performedBy}</p>
                       </div>
                       <div className="text-sm font-bold text-primary">
-                        +${log.cost.toLocaleString()}
+                        +${(log.cost || 0).toLocaleString()}
                       </div>
                     </div>
                   ))
+                ) : (
+                  <div className="text-center py-8 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
+                    No repair records found for this item.
+                  </div>
                 )}
               </div>
             </div>
@@ -715,8 +733,8 @@ export default function InventoryPage() {
                   id="cost" 
                   type="number" 
                   placeholder="0.00"
-                  value={newItem.purchaseCost === 0 ? "" : newItem.purchaseCost} 
-                  onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value === "" ? 0 : Number(e.target.value)})} 
+                  value={newItem.purchaseCost} 
+                  onChange={(e) => setNewItem({...newItem, purchaseCost: e.target.value})} 
                 />
               </div>
             </div>
