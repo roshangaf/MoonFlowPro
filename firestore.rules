@@ -17,6 +17,7 @@ service cloud.firestore {
     function isApprovedStaff() {
       return isSignedIn() && (
         isSuperAdmin() ||
+        exists(/databases/$(database)/documents/businessUsers/$(request.auth.uid)) && 
         get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true
       );
     }
@@ -52,12 +53,12 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
+      allow create: if isApprovedStaff();
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
-      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
+      allow create: if isApprovedStaff();
       allow get, list, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
@@ -66,7 +67,7 @@ service cloud.firestore {
     }
 
     match /sales/{saleId} {
-      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
+      allow create: if isApprovedStaff();
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 

@@ -129,7 +129,7 @@ export default function InventoryPage() {
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
   
-  // Robust companyId detection with fallback to user.uid for regular users and "system" for admin
+  // Robust companyId detection
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const productsQuery = useMemoFirebase(() => {
@@ -168,7 +168,7 @@ export default function InventoryPage() {
     if (!db || !user || !companyId) {
       toast({ 
         title: "Initializing...", 
-        description: "Your business context is still being established. Please try again in a moment.", 
+        description: "Establishing business context. Please try again in 1 second.", 
         variant: "destructive" 
       });
       return;
@@ -284,7 +284,7 @@ export default function InventoryPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Synchronizing Stock...</p>
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Syncing Inventory...</p>
         </div>
       </div>
     )
@@ -305,7 +305,7 @@ export default function InventoryPage() {
             </Badge>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
-          <p className="text-muted-foreground text-sm font-body">Manage your company's stock and reconditioning records.</p>
+          <p className="text-muted-foreground text-sm font-body">Private stock and reconditioning records for your account.</p>
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {isSelectionMode ? (
@@ -326,7 +326,7 @@ export default function InventoryPage() {
                 <Plus className="h-4 w-4 mr-1" /> Add to Stock
               </Button>
               <Button variant="outline" className="h-11 col-span-2 sm:col-auto" onClick={() => setIsSwitchDialogOpen(true)}>
-                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch Location
+                <ArrowLeftRight className="h-4 w-4 mr-1" /> Switch Warehouse
               </Button>
             </>
           )}
@@ -355,7 +355,6 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      {/* TABLE VIEW (DESKTOP) */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -422,7 +421,6 @@ export default function InventoryPage() {
         </Table>
       </div>
 
-      {/* CARD VIEW (MOBILE) */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
@@ -484,7 +482,6 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* DIALOGS */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">
@@ -564,7 +561,7 @@ export default function InventoryPage() {
           </div>
           <Separator />
           <div className="p-6">
-            <Button className="w-full font-bold h-12 text-base shadow-lg bg-primary hover:bg-primary/90" onClick={handleAddProduct}>Add to Company Inventory</Button>
+            <Button className="w-full font-bold h-12 text-base shadow-lg bg-primary hover:bg-primary/90" onClick={handleAddProduct}>Add to Account Inventory</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -572,8 +569,8 @@ export default function InventoryPage() {
       <Dialog open={isSwitchDialogOpen} onOpenChange={setIsSwitchDialogOpen}>
         <DialogContent className="sm:max-w-[450px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
           <div className="p-6 bg-muted/30 border-b">
-            <DialogTitle>Inventory Locations</DialogTitle>
-            <DialogDescription>Manage and switch between your company warehouses.</DialogDescription>
+            <DialogTitle>Inventory Warehouses</DialogTitle>
+            <DialogDescription>Manage and switch between your account locations.</DialogDescription>
           </div>
           <div className="p-6 space-y-4">
             <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
@@ -599,7 +596,7 @@ export default function InventoryPage() {
         <AlertDialogContent className="w-[95vw] rounded-2xl bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedIds.size} Items?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently remove these records from your company inventory. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>This will permanently remove these records from your account. This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
             <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>

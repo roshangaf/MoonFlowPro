@@ -83,7 +83,7 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Overview Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Here is what is happening with {profile?.companyName || "your company"} today.</p>
+        <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Here is what is happening with {profile?.companyName || "your account"} today.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -108,7 +108,7 @@ export default function DashboardPage() {
               <div className="p-2 bg-accent/5 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-accent" />
               </div>
-              <Badge variant="secondary" className="font-medium">Company Total</Badge>
+              <Badge variant="secondary" className="font-medium">Account Total</Badge>
             </div>
             <div className="mt-4">
               <p className="text-sm font-medium text-muted-foreground">Sales Volume</p>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-foreground">Recent Transactions</CardTitle>
-              <CardDescription>View latest company activity.</CardDescription>
+              <CardDescription>View latest account activity.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/sales">View All <ChevronRight className="ml-1 h-4 w-4" /></Link>
@@ -186,7 +186,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-3 border-none shadow-sm bg-card">
           <CardHeader>
             <CardTitle className="text-foreground">Stock Breakdown</CardTitle>
-            <CardDescription>Company lifecycle distribution.</CardDescription>
+            <CardDescription>Account lifecycle distribution.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
