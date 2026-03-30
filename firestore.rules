@@ -52,12 +52,12 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow create: if isApprovedStaff() && request.resource.data.companyId == getUserData().companyId;
+      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
-      allow create: if isApprovedStaff() && request.resource.data.companyId == getUserData().companyId;
+      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
       allow get, list, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
@@ -66,7 +66,7 @@ service cloud.firestore {
     }
 
     match /sales/{saleId} {
-      allow create: if isApprovedStaff() && request.resource.data.companyId == getUserData().companyId;
+      allow create: if isApprovedStaff() && (isSuperAdmin() || request.resource.data.companyId == getUserData().companyId);
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 

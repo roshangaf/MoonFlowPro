@@ -128,7 +128,8 @@ export default function InventoryPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  // Robust companyId detection
+  
+  // Robust companyId detection with fallback to user.uid for regular users and "system" for admin
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const productsQuery = useMemoFirebase(() => {
@@ -167,7 +168,7 @@ export default function InventoryPage() {
     if (!db || !user || !companyId) {
       toast({ 
         title: "Initializing...", 
-        description: "Your business profile is still loading. Please try again in a moment.", 
+        description: "Your business context is still being established. Please try again in a moment.", 
         variant: "destructive" 
       });
       return;
@@ -281,7 +282,10 @@ export default function InventoryPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Synchronizing Stock...</p>
+        </div>
       </div>
     )
   }
@@ -309,7 +313,7 @@ export default function InventoryPage() {
               <Button variant="ghost" className="h-11" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()) }}>
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
-              <Button variant="destructive" className="h-11" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
+              <Button variant="destructive" className="h-11 shadow-lg" disabled={selectedIds.size === 0} onClick={() => setIsBulkDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
             </>
@@ -318,7 +322,7 @@ export default function InventoryPage() {
               <Button variant="outline" className="h-11 border-destructive text-destructive" onClick={() => setIsSelectionMode(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Clear
               </Button>
-              <Button className="h-11 shadow-lg" onClick={() => setIsAddDialogOpen(true)}>
+              <Button className="h-11 shadow-lg bg-primary hover:bg-primary/90" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Add to Stock
               </Button>
               <Button variant="outline" className="h-11 col-span-2 sm:col-auto" onClick={() => setIsSwitchDialogOpen(true)}>
@@ -499,7 +503,7 @@ export default function InventoryPage() {
                 <Input placeholder="Description (e.g., Brake Pad Replacement)" value={repairDescription} onChange={(e) => setRepairDescription(e.target.value)} className="bg-background" />
                 <div className="flex gap-2">
                   <Input type="number" placeholder="Cost ($)" value={repairCost} onChange={(e) => setRepairCost(e.target.value)} className="bg-background" />
-                  <Button onClick={handleAddRepair} className="shrink-0 h-10"><Plus className="h-5 w-5" /></Button>
+                  <Button onClick={handleAddRepair} className="shrink-0 h-10 bg-primary hover:bg-primary/90"><Plus className="h-5 w-5" /></Button>
                 </div>
               </div>
             </div>
@@ -528,7 +532,7 @@ export default function InventoryPage() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
           <div className="p-6 bg-muted/30 border-b">
-            <DialogTitle>Add New Bike to Stock</DialogTitle>
+            <DialogTitle>Add New to Stock</DialogTitle>
             <DialogDescription>Enter initial details for your new inventory item.</DialogDescription>
           </div>
           <div className="p-6 space-y-5">
@@ -560,7 +564,7 @@ export default function InventoryPage() {
           </div>
           <Separator />
           <div className="p-6">
-            <Button className="w-full font-bold h-12 text-base shadow-lg" onClick={handleAddProduct}>Add to Company Inventory</Button>
+            <Button className="w-full font-bold h-12 text-base shadow-lg bg-primary hover:bg-primary/90" onClick={handleAddProduct}>Add to Company Inventory</Button>
           </div>
         </DialogContent>
       </Dialog>
