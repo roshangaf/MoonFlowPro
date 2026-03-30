@@ -128,7 +128,8 @@ export default function InventoryPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId
+  // Robust companyId detection
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
@@ -166,7 +167,7 @@ export default function InventoryPage() {
     if (!db || !user || !companyId) {
       toast({ 
         title: "Initializing...", 
-        description: "Your business profile is still loading. Please try again.", 
+        description: "Your business profile is still loading. Please try again in a moment.", 
         variant: "destructive" 
       });
       return;
