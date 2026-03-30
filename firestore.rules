@@ -26,23 +26,24 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // Checks if the document belongs to the user's company or if the user is a super admin
     function belongsToCompany(resourceData) {
       return isSuperAdmin() || (isApprovedStaff() && resourceData.companyId == getUserData().companyId);
     }
 
+    // Checks if the incoming data has the correct companyId for the user
+    function hasValidCompanyId(incomingData) {
+      return isSuperAdmin() || (isApprovedStaff() && incomingData.companyId == getUserData().companyId);
+    }
+
     // --- COLLECTION RULES ---
 
     match /businessUsers/{userId} {
-      allow get: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && (query.limit <= 100));
+      allow get: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSuperAdmin();
       
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isSuperAdmin() || (isApprovedStaff() && getUserData().companyId == resource.data.companyId && getUserData().role == 'admin');
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow delete: if isSuperAdmin();
     }
 
@@ -53,12 +54,12 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow create: if isApprovedStaff();
+      allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
-      allow create: if isApprovedStaff();
+      allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
       allow get, list, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
@@ -67,12 +68,13 @@ service cloud.firestore {
     }
 
     match /sales/{saleId} {
-      allow create: if isApprovedStaff();
+      allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
       allow get, list, update, delete: if belongsToCompany(resource.data);
     }
 
     match /reminders/{reminderId} {
-      allow get, list, create, update, delete: if belongsToCompany(resource.data);
+      allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
+      allow get, list, update, delete: if belongsToCompany(resource.data);
     }
   }
 }

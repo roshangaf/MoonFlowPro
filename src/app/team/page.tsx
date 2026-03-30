@@ -115,10 +115,10 @@ export default function CompanyManagementPage() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-primary font-headline flex items-center gap-2">
             <Building2 className="h-8 w-8" />
-            Company Management
+            Management Portal
           </h1>
           <p className="text-muted-foreground font-body">
-            {isSuperAdmin ? "System-wide User Approvals & Management" : `Manage member access for ${profile?.companyName || "Your Company"}.`}
+            {isSuperAdmin ? "Global Access Approvals" : `Manage access for ${profile?.companyName || "Your Company"}.`}
           </p>
         </div>
         {isCurrentUserAdmin && (
@@ -200,13 +200,13 @@ export default function CompanyManagementPage() {
         <DialogContent className="sm:max-w-[425px] bg-card">
           <DialogHeader><DialogTitle>Invite Member</DialogTitle></DialogHeader>
           <div className="py-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">Share this registration link with your team to join your company:</p>
+            <p className="text-sm text-muted-foreground">Share this registration link with your team:</p>
             <code className="block p-3 bg-muted rounded-lg text-xs break-all border">{typeof window !== 'undefined' ? `${window.location.origin}/?mode=signup` : '/?mode=signup'}</code>
           </div>
           <DialogFooter>
             <Button className="w-full" onClick={() => {
               navigator.clipboard.writeText(window.location.origin + "/?mode=signup")
-              toast({ title: "Registration Link Copied" })
+              toast({ title: "Link Copied" })
               setIsInviteOpen(false)
             }}>Copy Link</Button>
           </DialogFooter>

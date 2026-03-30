@@ -128,8 +128,6 @@ export default function InventoryPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  
-  // Robust companyId detection with immediate session fallback
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const productsQuery = useMemoFirebase(() => {
@@ -165,10 +163,10 @@ export default function InventoryPage() {
       return;
     }
 
-    if (!db || !user || !companyId) {
+    if (!db || !companyId) {
       toast({ 
         title: "Account Not Initialized", 
-        description: "Your business profile is still loading. Please try again in 2 seconds.", 
+        description: "Your business profile is still loading. Please try again.", 
         variant: "destructive" 
       });
       return;
@@ -305,7 +303,7 @@ export default function InventoryPage() {
             </Badge>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary font-headline">Inventory Management</h1>
-          <p className="text-muted-foreground text-sm font-body">Private stock and reconditioning records for your account.</p>
+          <p className="text-muted-foreground text-sm font-body">Manage stock for {profile?.companyName || "your account"}.</p>
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {isSelectionMode ? (
@@ -355,7 +353,7 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      {/* Desktop Table */}
+      {/* Desktop View */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -422,7 +420,7 @@ export default function InventoryPage() {
         </Table>
       </div>
 
-      {/* Mobile Cards */}
+      {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);

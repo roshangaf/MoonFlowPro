@@ -83,7 +83,7 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Overview Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Here is what is happening with {profile?.companyName || "your account"} today.</p>
+        <p className="text-muted-foreground">Welcome back, {profile?.firstName}. Manage your business from here.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -108,7 +108,7 @@ export default function DashboardPage() {
               <div className="p-2 bg-accent/5 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-accent" />
               </div>
-              <Badge variant="secondary" className="font-medium">Account Total</Badge>
+              <Badge variant="secondary" className="font-medium">Total</Badge>
             </div>
             <div className="mt-4">
               <p className="text-sm font-medium text-muted-foreground">Sales Volume</p>
@@ -138,11 +138,11 @@ export default function DashboardPage() {
               <div className="p-2 bg-accent/5 rounded-lg">
                 <Clock className="h-6 w-6 text-accent" />
               </div>
-              <Badge variant="secondary" className="font-medium">Active</Badge>
+              <Badge variant="secondary" className="font-medium">Healthy</Badge>
             </div>
             <div className="mt-4">
               <p className="text-sm font-medium text-muted-foreground">System Status</p>
-              <h3 className="text-2xl font-bold text-foreground">Healthy</h3>
+              <h3 className="text-2xl font-bold text-foreground">Active</h3>
             </div>
           </CardContent>
         </Card>
@@ -186,7 +186,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-3 border-none shadow-sm bg-card">
           <CardHeader>
             <CardTitle className="text-foreground">Stock Breakdown</CardTitle>
-            <CardDescription>Account lifecycle distribution.</CardDescription>
+            <CardDescription>Stock lifecycle distribution.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
