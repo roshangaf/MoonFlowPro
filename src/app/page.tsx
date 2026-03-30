@@ -33,6 +33,7 @@ function LoginPageContent() {
   const { user, isUserLoading } = useUser()
 
   useEffect(() => {
+    // Standard authenticated redirect logic
     if (user && !isUserLoading) {
       router.push("/dashboard")
     }
@@ -53,9 +54,6 @@ function LoginPageContent() {
         .then((cred) => {
           if (db && cred.user) {
             const isSuperAdmin = email === 'roshanismean@gmail.com'
-            
-            // For a new signup, the companyId is the user's UID (they are the creator)
-            // Unless they are joining via an invite (future feature), they start a new company.
             const companyId = cred.user.uid;
 
             setDocumentNonBlocking(doc(db, "businessUsers", cred.user.uid), {
@@ -80,8 +78,8 @@ function LoginPageContent() {
             toast({
               title: "Registration Successful",
               description: isSuperAdmin 
-                ? "Admin profile created. You have full access." 
-                : "Your company profile has been created and is pending activation.",
+                ? "Admin profile created. Accessing global dashboard." 
+                : "Your company profile is created. Please wait for admin activation.",
             })
           }
         })
@@ -179,7 +177,7 @@ function LoginPageContent() {
                     placeholder="email@example.com" 
                     className="pl-10"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(emailValue) => setEmail(emailValue.target.value)}
                     required
                   />
                 </div>
@@ -193,7 +191,7 @@ function LoginPageContent() {
                     type="password" 
                     className="pl-10"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(passValue) => setPassword(passValue.target.value)}
                     required
                   />
                 </div>

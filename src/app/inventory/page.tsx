@@ -129,7 +129,7 @@ export default function InventoryPage() {
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
   
-  // Robust companyId detection
+  // Robust companyId detection with immediate session fallback
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const productsQuery = useMemoFirebase(() => {
@@ -167,8 +167,8 @@ export default function InventoryPage() {
 
     if (!db || !user || !companyId) {
       toast({ 
-        title: "Initializing...", 
-        description: "Establishing business context. Please try again in 1 second.", 
+        title: "Account Not Initialized", 
+        description: "Your business profile is still loading. Please try again in 2 seconds.", 
         variant: "destructive" 
       });
       return;
@@ -355,6 +355,7 @@ export default function InventoryPage() {
         </Select>
       </div>
 
+      {/* Desktop Table */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -421,6 +422,7 @@ export default function InventoryPage() {
         </Table>
       </div>
 
+      {/* Mobile Cards */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
@@ -482,6 +484,7 @@ export default function InventoryPage() {
         )}
       </div>
 
+      {/* Dialogs */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">

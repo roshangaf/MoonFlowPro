@@ -17,8 +17,8 @@ service cloud.firestore {
     function isApprovedStaff() {
       return isSignedIn() && (
         isSuperAdmin() ||
-        exists(/databases/$(database)/documents/businessUsers/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true
+        (exists(/databases/$(database)/documents/businessUsers/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/businessUsers/$(request.auth.uid)).data.approved == true)
       );
     }
 
