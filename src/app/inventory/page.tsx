@@ -101,6 +101,7 @@ export default function InventoryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  
   const [newItem, setNewItem] = useState({
     name: "",
     status: "Received" as ProductStatus,
@@ -112,12 +113,6 @@ export default function InventoryPage() {
   const [selectedProductForRepair, setSelectedProductForRepair] = useState<any | null>(null)
   const [repairDescription, setRepairDescription] = useState("")
   const [repairCost, setRepairCost] = useState("")
-
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/")
-    }
-  }, [user, isUserLoading, router])
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
@@ -132,9 +127,9 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "products")
+    // Filter by companyId to satisfy security rules and ensure isolation
     return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved, isSuperAdmin])
+  }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
 

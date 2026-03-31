@@ -1,3 +1,4 @@
+
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
@@ -26,12 +27,19 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
 
-  const isLoginPage = pathname === "/"
+  const isPublicPage = pathname === "/" || pathname === "/login"
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = (profile?.approved === true) || isSuperAdmin
 
-  // If user is logged in but not approved (and not an admin), and not on the login page
-  if (user && !isUserLoading && !isProfileLoading && !isApproved && !isLoginPage) {
+  // Redirect to login if user is not logged in and trying to access private page
+  useEffect(() => {
+    if (!isUserLoading && !user && !isPublicPage) {
+      router.push("/login")
+    }
+  }, [user, isUserLoading, isPublicPage, router])
+
+  // If user is logged in but not approved, and not on a public page
+  if (user && !isUserLoading && !isProfileLoading && !isApproved && !isPublicPage) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 md:p-6">
         <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -57,33 +65,9 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
                 }
               }}
             >
-              <LogOut className="h-4 w-4" /> Sign Out & Return Home
+              <LogOut className="h-4 w-4" /> Return to Home
             </Button>
-            
-            <div className="mt-8 pt-6 border-t space-y-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                Account Credentials
-              </p>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">System UID:</span>
-                <code className="bg-slate-100 dark:bg-slate-900 p-2 rounded text-[10px] font-mono break-all select-all w-full border">
-                  {user.uid}
-                </code>
-              </div>
-            </div>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  // If loading user or profile
-  if (user && (isUserLoading || isProfileLoading)) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse font-bold tracking-widest uppercase">Initializing Portal</p>
         </div>
       </div>
     )
@@ -94,12 +78,12 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLoginPage = pathname === "/"
+  const isPublicPage = pathname === "/" || pathname === "/login"
 
   return (
     <FirebaseClientProvider>
       <ApprovalWrapper>
-        {isLoginPage ? (
+        {isPublicPage ? (
           <main className="w-full min-h-screen bg-background">{children}</main>
         ) : (
           <SidebarProvider>
