@@ -33,7 +33,10 @@ service cloud.firestore {
 
     // Checks if the incoming data has the correct companyId for the user
     function hasValidCompanyId(incomingData) {
-      return isSuperAdmin() || (isApprovedStaff() && incomingData.companyId == getUserData().companyId);
+      return isSuperAdmin() || (isApprovedStaff() && (
+        incomingData.companyId == getUserData().companyId || 
+        incomingData.companyId == request.auth.uid
+      ));
     }
 
     // --- COLLECTION RULES ---
@@ -55,12 +58,14 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow get, list, update, delete: if belongsToCompany(resource.data);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow get, list, update, delete: if belongsToCompany(resource.data);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow get, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
         allow get, list, create, update, delete: if isApprovedStaff();
@@ -69,12 +74,14 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow get, list, update, delete: if belongsToCompany(resource.data);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /reminders/{reminderId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow get, list, update, delete: if belongsToCompany(resource.data);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow get, update, delete: if belongsToCompany(resource.data);
     }
   }
 }

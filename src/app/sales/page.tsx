@@ -69,13 +69,6 @@ export default function SalesPage() {
   const db = useFirestore()
   const { toast } = useToast()
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/")
-    }
-  }, [user, isUserLoading, router])
-
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "businessUsers", user.uid)
@@ -85,9 +78,16 @@ export default function SalesPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
-  // Fetch Sales
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isUserLoading, router])
+
+  // Fetch Sales - Scoped to companyId
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
     if (isSuperAdmin) return collection(db, "sales")
@@ -96,7 +96,7 @@ export default function SalesPage() {
 
   const { data: sales, isLoading: salesLoading } = useCollection(salesQuery)
 
-  // Fetch Customers and Products for recording new sale
+  // Fetch Customers and Products for recording new sale - Scoped to companyId
   const customersQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
     return query(collection(db, "customers"), where("companyId", "==", companyId))
@@ -172,6 +172,17 @@ export default function SalesPage() {
       setDeleteId(null)
       toast({ title: "Sale Deleted", variant: "destructive" })
     }
+  }
+
+  const handleBulkDelete = () => {
+    if (!db) return
+    selectedIds.forEach(id => {
+      deleteDocumentNonBlocking(doc(db, "sales", id))
+    })
+    setSelectedIds(new Set())
+    setIsSelectionMode(false)
+    setIsBulkDeleteOpen(false)
+    toast({ title: "Transactions Deleted", variant: "destructive" })
   }
 
   const toggleSelection = (id: string) => {

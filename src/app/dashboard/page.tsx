@@ -24,12 +24,6 @@ export default function DashboardPage() {
   const db = useFirestore()
   const { user, isUserLoading } = useUser()
 
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/")
-    }
-  }, [user, isUserLoading, router])
-
   const profileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null
     return doc(db, "businessUsers", user.uid)
@@ -40,6 +34,12 @@ export default function DashboardPage() {
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isUserLoading, router])
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null

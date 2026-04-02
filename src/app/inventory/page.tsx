@@ -91,6 +91,17 @@ export default function InventoryPage() {
   const db = useFirestore()
   const { toast } = useToast()
 
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null
+    return doc(db, "businessUsers", user.uid)
+  }, [db, user?.uid])
+
+  const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
+  
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
+
   const [currentInventory, setCurrentInventory] = useState("Main Warehouse")
   const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false)
   const [newInvName, setNewInvName] = useState("")
@@ -114,20 +125,8 @@ export default function InventoryPage() {
   const [repairDescription, setRepairDescription] = useState("")
   const [repairCost, setRepairCost] = useState("")
 
-  const profileRef = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null
-    return doc(db, "businessUsers", user.uid)
-  }, [db, user?.uid])
-
-  const { data: profile, isLoading: profileLoading } = useDoc(profileRef)
-  
-  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
-  const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
-
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    // Filter by companyId to satisfy security rules and ensure isolation
     return query(collection(db, "products"), where("companyId", "==", companyId))
   }, [db, user, companyId, isApproved])
 
@@ -158,14 +157,7 @@ export default function InventoryPage() {
       return;
     }
 
-    if (!db || !companyId) {
-      toast({ 
-        title: "Account Not Initialized", 
-        description: "Your business profile is still loading. Please try again.", 
-        variant: "destructive" 
-      });
-      return;
-    }
+    if (!db || !companyId) return;
 
     const productData = {
       name: newItem.name,
@@ -348,7 +340,6 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      {/* Desktop View */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -415,7 +406,6 @@ export default function InventoryPage() {
         </Table>
       </div>
 
-      {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {filteredProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
@@ -472,12 +462,8 @@ export default function InventoryPage() {
             </Card>
           )
         })}
-        {filteredProducts.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed font-medium">No items found.</div>
-        )}
       </div>
 
-      {/* Dialogs */}
       <Dialog open={!!selectedProductForRepair} onOpenChange={(open) => !open && setSelectedProductForRepair(null)}>
         <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card">
           <div className="p-6 border-b bg-muted/30">
@@ -515,7 +501,6 @@ export default function InventoryPage() {
                     <span className="font-bold text-primary">+${log.cost}</span>
                   </div>
                 ))}
-                {!repairsLoading && (!repairLogs || repairLogs.length === 0) && <p className="text-center py-8 text-xs text-muted-foreground italic bg-muted/10 rounded-lg border-2 border-dashed">No repairs recorded yet.</p>}
               </div>
             </div>
           </div>
