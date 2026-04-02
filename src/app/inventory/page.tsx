@@ -65,7 +65,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc, query, where, orderBy } from "firebase/firestore"
+import { collection, doc, query, where, orderBy, limit } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 type ProductStatus = 'Received' | 'In Repair' | 'Tested' | 'Listed' | 'Sold';
@@ -127,7 +127,14 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    return query(collection(db, "products"), where("companyId", "==", companyId))
+    // If super admin, they need to satisfy the list rule too (filters size > 0 and limit)
+    // Actually the rule says: isSuperAdmin() || (isApprovedStaff() && limit && filters)
+    // We'll provide filters and limit anyway for consistency
+    return query(
+      collection(db, "products"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
   }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
@@ -136,7 +143,8 @@ export default function InventoryPage() {
     if (!db || !selectedProductForRepair?.id) return null
     return query(
       collection(db, "products", selectedProductForRepair.id, "repairLogs"),
-      orderBy("date", "desc")
+      orderBy("date", "desc"),
+      limit(50)
     )
   }, [db, selectedProductForRepair?.id])
 

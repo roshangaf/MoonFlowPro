@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, query, where, doc } from "firebase/firestore"
+import { collection, query, where, doc, limit } from "firebase/firestore"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -37,27 +37,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push("/")
+      router.push("/login")
     }
   }, [user, isUserLoading, router])
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "products")
-    return query(collection(db, "products"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved, isSuperAdmin])
+    return query(
+      collection(db, "products"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
+  }, [db, user, companyId, isApproved])
 
   const customersQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "customers")
-    return query(collection(db, "customers"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved, isSuperAdmin])
+    return query(
+      collection(db, "customers"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
+  }, [db, user, companyId, isApproved])
 
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "sales")
-    return query(collection(db, "sales"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isApproved, isSuperAdmin])
+    return query(
+      collection(db, "sales"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
+  }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)

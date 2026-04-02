@@ -60,7 +60,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc, query, where } from "firebase/firestore"
+import { collection, doc, query, where, limit } from "firebase/firestore"
 import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function SalesPage() {
@@ -83,28 +83,40 @@ export default function SalesPage() {
   // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push("/")
+      router.push("/login")
     }
   }, [user, isUserLoading, router])
 
-  // Fetch Sales - Scoped to companyId
+  // Fetch Sales - Scoped to companyId with limit to satisfy security rules
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "sales")
-    return query(collection(db, "sales"), where("companyId", "==", companyId))
-  }, [db, user, companyId, isSuperAdmin, isApproved])
+    return query(
+      collection(db, "sales"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
+  }, [db, user, companyId, isApproved])
 
   const { data: sales, isLoading: salesLoading } = useCollection(salesQuery)
 
   // Fetch Customers and Products for recording new sale - Scoped to companyId
   const customersQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
-    return query(collection(db, "customers"), where("companyId", "==", companyId))
+    return query(
+      collection(db, "customers"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
   }, [db, companyId, isApproved])
   
   const productsQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
-    return query(collection(db, "products"), where("companyId", "==", companyId), where("lifecycleStatus", "!=", "Sold"))
+    return query(
+      collection(db, "products"), 
+      where("companyId", "==", companyId), 
+      where("lifecycleStatus", "!=", "Sold"),
+      limit(100)
+    )
   }, [db, companyId, isApproved])
 
   const { data: customers } = useCollection(customersQuery)
@@ -153,7 +165,7 @@ export default function SalesPage() {
     })
 
     // Update Customer Lifetime Value
-    const customer = customers?.find(c => c.id === newSale.customerId)
+    const customer = (customers || []).find(c => c.id === newSale.customerId)
     if (customer) {
       updateDocumentNonBlocking(doc(db, "customers", customer.id), {
         totalSpent: (customer.totalSpent || 0) + Number(newSale.amount),
@@ -459,7 +471,7 @@ export default function SalesPage() {
               <Select onValueChange={(v) => setNewSale({...newSale, customerId: v})} value={newSale.customerId}>
                 <SelectTrigger className="h-11 bg-background"><SelectValue placeholder="Select Customer" /></SelectTrigger>
                 <SelectContent>
-                  {customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>)}
+                  {(customers || []).map(c => <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>)}
                   {(!customers || customers.length === 0) && <p className="p-2 text-xs text-muted-foreground">No customer profiles available.</p>}
                 </SelectContent>
               </Select>
@@ -469,7 +481,7 @@ export default function SalesPage() {
               <Select onValueChange={(v) => setNewSale({...newSale, productId: v})} value={newSale.productId}>
                 <SelectTrigger className="h-11 bg-background"><SelectValue placeholder="Select Product" /></SelectTrigger>
                 <SelectContent>
-                  {products?.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (SN: {p.serialNumber})</SelectItem>)}
+                  {(products || []).map(p => <SelectItem key={p.id} value={p.id}>{p.name} (SN: {p.serialNumber})</SelectItem>)}
                   {(!products || products.length === 0) && <p className="p-2 text-xs text-muted-foreground">No available inventory.</p>}
                 </SelectContent>
               </Select>
