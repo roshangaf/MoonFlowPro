@@ -14,7 +14,9 @@ import {
   ArrowLeftRight, 
   Wrench,
   Package,
-  ChevronDown
+  ChevronDown,
+  BadgeDollarSign,
+  ArrowRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -125,6 +127,13 @@ export default function InventoryPage() {
   const [repairDescription, setRepairDescription] = useState("")
   const [repairCost, setRepairCost] = useState("")
 
+  // Sale Recording State
+  const [isRecordSaleDialogOpen, setIsRecordSaleDialogOpen] = useState(false)
+  const [selectedProductForSale, setSelectedProductForSale] = useState<any | null>(null)
+  const [saleAmount, setSaleAmount] = useState("")
+  const [saleCustomerId, setSaleCustomerId] = useState("")
+  const [salePaymentMethod, setSalePaymentMethod] = useState("Credit Card")
+
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
     return query(
@@ -135,6 +144,17 @@ export default function InventoryPage() {
   }, [db, user, companyId, isApproved])
 
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery)
+
+  const customersQuery = useMemoFirebase(() => {
+    if (!db || !companyId || !isApproved) return null
+    return query(
+      collection(db, "customers"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
+  }, [db, companyId, isApproved])
+
+  const { data: customers } = useCollection(customersQuery)
 
   const repairLogsQuery = useMemoFirebase(() => {
     if (!db || !selectedProductForRepair?.id) return null
@@ -186,11 +206,66 @@ export default function InventoryPage() {
 
   const handleStatusChange = (productId: string, newStatus: ProductStatus) => {
     if (!db) return
+    
+    // Trigger Sale Flow if status is 'Sold'
+    if (newStatus === 'Sold') {
+      const product = (products || []).find(p => p.id === productId)
+      if (product) {
+        setSelectedProductForSale(product)
+        setSaleAmount(String((product.purchaseCost || 0) + (product.totalRepairCost || 0) + 500)) // Default suggestion
+        setIsRecordSaleDialogOpen(true)
+      }
+      return
+    }
+
     updateDocumentNonBlocking(doc(db, "products", productId), { 
       lifecycleStatus: newStatus,
       updatedAt: new Date().toISOString()
     })
     toast({ title: "Status Updated", description: `Item status changed to ${newStatus}.` })
+  }
+
+  const handleConfirmSale = () => {
+    if (!db || !selectedProductForSale || !saleCustomerId || !saleAmount || !companyId) {
+      toast({ title: "Missing Information", description: "Please select a customer and enter a sale amount.", variant: "destructive" })
+      return
+    }
+
+    const amount = Number(saleAmount)
+    const saleData = {
+      customerId: saleCustomerId,
+      productId: selectedProductForSale.id,
+      totalAmount: amount,
+      paymentMethod: salePaymentMethod,
+      paymentStatus: "Completed",
+      companyId: companyId,
+      createdAt: new Date().toISOString(),
+      saleDate: new Date().toISOString(),
+    }
+
+    // Add Sale Record
+    addDocumentNonBlocking(collection(db, "sales"), saleData)
+
+    // Mark Product as Sold
+    updateDocumentNonBlocking(doc(db, "products", selectedProductForSale.id), {
+      lifecycleStatus: "Sold",
+      updatedAt: new Date().toISOString()
+    })
+
+    // Update Customer Lifetime Value
+    const customer = (customers || []).find(c => c.id === saleCustomerId)
+    if (customer) {
+      updateDocumentNonBlocking(doc(db, "customers", customer.id), {
+        totalSpent: (customer.totalSpent || 0) + amount,
+        updatedAt: new Date().toISOString()
+      })
+    }
+
+    setIsRecordSaleDialogOpen(false)
+    setSelectedProductForSale(null)
+    setSaleAmount("")
+    setSaleCustomerId("")
+    toast({ title: "Sale Recorded", description: "Transaction finalized and inventory updated." })
   }
 
   const handleAddRepair = async () => {
@@ -509,6 +584,52 @@ export default function InventoryPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRecordSaleDialogOpen} onOpenChange={setIsRecordSaleDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-2xl bg-card p-0 overflow-hidden">
+          <div className="p-6 bg-muted/30 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <BadgeDollarSign className="h-5 w-5 text-primary" />
+              Record Transaction
+            </DialogTitle>
+            <DialogDescription>Item: <strong>{selectedProductForSale?.name}</strong>. Update sale details.</DialogDescription>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid gap-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Customer</Label>
+              <Select onValueChange={setSaleCustomerId} value={saleCustomerId}>
+                <SelectTrigger className="h-11 bg-background"><SelectValue placeholder="Choose profile..." /></SelectTrigger>
+                <SelectContent>
+                  {(customers || []).map(c => <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sale Amount ($)</Label>
+                <Input type="number" value={saleAmount} onChange={(e) => setSaleAmount(e.target.value)} className="h-11 bg-background" />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Method</Label>
+                <Select onValueChange={setSalePaymentMethod} value={salePaymentMethod}>
+                  <SelectTrigger className="h-11 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Credit Card">Credit Card</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <Separator />
+          <div className="p-6">
+            <Button className="w-full font-bold h-12 text-base shadow-lg gap-2" onClick={handleConfirmSale}>
+              Confirm Sale <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
