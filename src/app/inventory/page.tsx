@@ -127,9 +127,6 @@ export default function InventoryPage() {
 
   const productsQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    // If super admin, they need to satisfy the list rule too (filters size > 0 and limit)
-    // Actually the rule says: isSuperAdmin() || (isApprovedStaff() && limit && filters)
-    // We'll provide filters and limit anyway for consistency
     return query(
       collection(db, "products"), 
       where("companyId", "==", companyId),
@@ -233,10 +230,11 @@ export default function InventoryPage() {
     selectedIds.forEach(id => {
       deleteDocumentNonBlocking(doc(db, "products", id))
     })
+    const count = selectedIds.size
     setSelectedIds(new Set())
     setIsSelectionMode(false)
     setIsBulkDeleteOpen(false)
-    toast({ title: "Items Deleted", variant: "destructive" })
+    toast({ title: "Items Deleted", description: `${count} items removed.`, variant: "destructive" })
   }
 
   const handleSwitchInventory = (name: string) => {

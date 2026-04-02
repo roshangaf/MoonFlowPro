@@ -191,10 +191,11 @@ export default function SalesPage() {
     selectedIds.forEach(id => {
       deleteDocumentNonBlocking(doc(db, "sales", id))
     })
+    const count = selectedIds.size
     setSelectedIds(new Set())
     setIsSelectionMode(false)
     setIsBulkDeleteOpen(false)
-    toast({ title: "Transactions Deleted", variant: "destructive" })
+    toast({ title: "Transactions Deleted", description: `${count} records removed.`, variant: "destructive" })
   }
 
   const toggleSelection = (id: string) => {

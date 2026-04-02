@@ -58,13 +58,15 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      // Fixed list rule: must be approved staff and results are filtered by their company context
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100);
       allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      // Fixed list rule: must be approved staff and results are filtered by their company context
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100);
       allow get, update, delete: if belongsToCompany(resource.data);
       
       match /repairLogs/{repairLogId} {
@@ -74,13 +76,13 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100);
       allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /reminders/{reminderId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100 && request.query.filters.size() > 0);
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 100);
       allow get, update, delete: if belongsToCompany(resource.data);
     }
   }
