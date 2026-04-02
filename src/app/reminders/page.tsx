@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { generateAutomatedReminders, GenerateReminderOutput } from "@/ai/flows/generate-automated-reminders"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, query, where, doc } from "firebase/firestore"
+import { collection, query, where, doc, limit } from "firebase/firestore"
 
 export default function RemindersPage() {
   const router = useRouter()
@@ -31,7 +31,7 @@ export default function RemindersPage() {
   // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push("/")
+      router.push("/login")
     }
   }, [user, isUserLoading, router])
 
@@ -41,19 +41,28 @@ export default function RemindersPage() {
   }, [db, user?.uid])
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef)
-  const isApproved = profile?.approved === true || user?.email === 'roshanismean@gmail.com'
-  const companyId = profile?.companyId
+  const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
+  const isApproved = profile?.approved === true || isSuperAdmin
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   // Fetch Customers
   const customersQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
-    return query(collection(db, "customers"), where("companyId", "==", companyId))
+    return query(
+      collection(db, "customers"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
   }, [db, companyId, isApproved])
 
   // Fetch Products
   const productsQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
-    return query(collection(db, "products"), where("companyId", "==", companyId))
+    return query(
+      collection(db, "products"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
   }, [db, companyId, isApproved])
 
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)

@@ -44,7 +44,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
-import { collection, doc, query, where } from "firebase/firestore"
+import { collection, doc, query, where, limit } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function CustomersPage() {
@@ -56,7 +56,7 @@ export default function CustomersPage() {
   // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push("/")
+      router.push("/login")
     }
   }, [user, isUserLoading, router])
 
@@ -69,7 +69,7 @@ export default function CustomersPage() {
   
   const isSuperAdmin = user?.email === 'roshanismean@gmail.com'
   const isApproved = profile?.approved === true || isSuperAdmin
-  const companyId = profile?.companyId
+  const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
@@ -86,8 +86,12 @@ export default function CustomersPage() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return collection(db, "customers")
-    return query(collection(db, "customers"), where("companyId", "==", companyId))
+    if (isSuperAdmin) return query(collection(db, "customers"), limit(100))
+    return query(
+      collection(db, "customers"), 
+      where("companyId", "==", companyId),
+      limit(100)
+    )
   }, [db, user, companyId, isSuperAdmin, isApproved])
 
   const { data: customers, isLoading: customersLoading } = useCollection(customersQuery)
