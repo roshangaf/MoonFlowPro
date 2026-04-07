@@ -13,7 +13,8 @@ import {
   Trash2,
   X,
   UserPlus,
-  Loader2
+  Loader2,
+  Users
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -209,7 +210,7 @@ export default function CustomersPage() {
                 className="border-destructive text-destructive hover:bg-destructive/10 flex gap-2 shadow-sm"
                 onClick={() => setIsSelectionMode(true)}
               >
-                <Trash2 className="h-4 w-4" /> Clear
+                <Trash2 className="h-4 w-4" /> Bulk Cleanup
               </Button>
               <Button 
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg flex gap-2"
@@ -239,7 +240,7 @@ export default function CustomersPage() {
           <Card 
             key={customer.id} 
             className={cn(
-              "border-none shadow-sm transition-all group overflow-hidden relative",
+              "border-none shadow-sm transition-all group overflow-hidden relative bg-card hover:shadow-md",
               selectedIds.has(customer.id) && "ring-2 ring-primary bg-primary/5"
             )}
           >
@@ -254,30 +255,30 @@ export default function CustomersPage() {
             <CardContent className="p-0">
               <div className={cn("flex flex-col sm:flex-row p-6 items-start gap-5", isSelectionMode && "pl-14")}>
                 <Avatar className="h-16 w-16 border-2 border-secondary shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                    {customer.firstName[0]}{customer.lastName[0]}
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl uppercase">
+                    {customer.firstName?.[0]}{customer.lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 
                 <div className="flex-1 w-full space-y-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="space-y-0.5">
                       <h3 className="font-bold text-lg group-hover:text-primary transition-colors text-foreground">
                         {customer.firstName} {customer.lastName}
                       </h3>
                       <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-                        ID: {customer.id}
+                        Customer ID: {customer.id}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100 w-fit shrink-0">
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100 w-fit shrink-0 font-bold uppercase text-[9px]">
                       Active Account
                     </Badge>
                   </div>
                   
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-primary/60 shrink-0" />
-                      <span className="truncate max-w-[180px]">{customer.email}</span>
+                      <span className="truncate">{customer.email}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-primary/60 shrink-0" />
@@ -291,7 +292,7 @@ export default function CustomersPage() {
                         <ShoppingBag className="h-5 w-5 text-primary/60" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Lifetime Revenue</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Total Lifetime Spent</span>
                         <span className="text-lg font-bold text-primary">${(customer.totalSpent || 0).toLocaleString()}</span>
                       </div>
                     </div>
