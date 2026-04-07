@@ -16,7 +16,8 @@ import {
   Package,
   ChevronDown,
   BadgeDollarSign,
-  ArrowRight
+  ArrowRight,
+  ArrowUpDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -110,6 +111,7 @@ export default function InventoryPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
+  const [sortBy, setSortBy] = useState<string>("newest")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
@@ -174,6 +176,22 @@ export default function InventoryPage() {
     const matchesStatus = statusFilter === "All" || product.lifecycleStatus === statusFilter
     const matchesInventory = product.location === currentInventory || (!product.location && currentInventory === "Main Warehouse")
     return matchesSearch && matchesStatus && matchesInventory
+  })
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === "newest") {
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+    }
+    if (sortBy === "oldest") {
+      return new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
+    }
+    if (sortBy === "name-asc") {
+      return (a.name || "").localeCompare(b.name || "")
+    }
+    if (sortBy === "name-desc") {
+      return (b.name || "").localeCompare(a.name || "")
+    }
+    return 0
   })
 
   const handleAddProduct = () => {
@@ -410,15 +428,30 @@ export default function InventoryPage() {
           />
         </div>
         
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-background/50 h-10">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            {FILTER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[150px] bg-background/50 h-10">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              {FILTER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-full sm:w-[150px] bg-background/50 h-10">
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Sort By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Latest Updated</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+              <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="hidden md:block bg-card rounded-xl shadow-sm border overflow-hidden">
@@ -434,12 +467,12 @@ export default function InventoryPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.length === 0 ? (
+            {sortedProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground font-medium">No inventory records found.</TableCell>
               </TableRow>
             ) : (
-              filteredProducts.map((product) => {
+              sortedProducts.map((product) => {
                 const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
                 return (
                   <TableRow key={product.id} className={cn(selectedIds.has(product.id) && "bg-primary/5")}>
@@ -488,7 +521,7 @@ export default function InventoryPage() {
       </div>
 
       <div className="md:hidden space-y-4">
-        {filteredProducts.map((product) => {
+        {sortedProducts.map((product) => {
           const totalInvest = (product.purchaseCost || 0) + (product.totalRepairCost || 0);
           return (
             <Card key={product.id} className={cn("overflow-hidden border-none shadow-sm relative bg-card", selectedIds.has(product.id) && "ring-2 ring-primary")}>
