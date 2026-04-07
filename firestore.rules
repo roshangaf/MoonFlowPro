@@ -43,7 +43,7 @@ service cloud.firestore {
 
     match /businessUsers/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
-      allow list: if isSuperAdmin();
+      allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 1000);
       
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow update: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
@@ -58,14 +58,12 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      // Increased capacity to 1000
       allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 1000);
       allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /products/{productId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      // Increased capacity to 1000
       allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 1000);
       allow get, update, delete: if belongsToCompany(resource.data);
       
@@ -76,14 +74,12 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      // Increased capacity to 1000
       allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 1000);
       allow get, update, delete: if belongsToCompany(resource.data);
     }
 
     match /reminders/{reminderId} {
       allow create: if isApprovedStaff() && hasValidCompanyId(request.resource.data);
-      // Increased capacity to 1000
       allow list: if isSuperAdmin() || (isApprovedStaff() && request.query.limit <= 1000);
       allow get, update, delete: if belongsToCompany(resource.data);
     }

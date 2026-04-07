@@ -38,8 +38,17 @@ function ApprovalWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, isPublicPage, router])
 
+  // Show global loader while determining auth or profile state
+  if (isUserLoading || (user && isProfileLoading)) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   // If user is logged in but not approved, and not on a public page
-  if (user && !isUserLoading && !isProfileLoading && !isApproved && !isPublicPage) {
+  if (user && !isApproved && !isPublicPage) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 md:p-6">
         <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
