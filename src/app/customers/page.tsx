@@ -14,7 +14,8 @@ import {
   X,
   UserPlus,
   Loader2,
-  Users
+  Users,
+  Fingerprint
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -130,10 +131,10 @@ export default function CustomersPage() {
   }
 
   const handleAddCustomer = () => {
-    if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
+    if (!newCustomer.firstName || !newCustomer.lastName) {
       toast({
         title: "Missing Information",
-        description: "Please provide a name and email for the new profile.",
+        description: "Please provide at least a first and last name for the new profile.",
         variant: "destructive"
       })
       return
@@ -144,7 +145,7 @@ export default function CustomersPage() {
     const customerData = {
       firstName: newCustomer.firstName,
       lastName: newCustomer.lastName,
-      email: newCustomer.email,
+      email: newCustomer.email || "No email provided",
       phoneNumber: newCustomer.phoneNumber || "Not provided",
       companyId: companyId,
       createdAt: new Date().toISOString(),
@@ -240,8 +241,8 @@ export default function CustomersPage() {
           <Card 
             key={customer.id} 
             className={cn(
-              "border-none shadow-sm transition-all group overflow-hidden relative bg-card hover:shadow-md",
-              selectedIds.has(customer.id) && "ring-2 ring-primary bg-primary/5"
+              "border shadow-sm transition-all group overflow-hidden relative bg-card hover:shadow-md",
+              selectedIds.has(customer.id) && "ring-2 ring-primary bg-primary/5 border-primary/20"
             )}
           >
             {isSelectionMode && (
@@ -253,53 +254,58 @@ export default function CustomersPage() {
               </div>
             )}
             <CardContent className="p-0">
-              <div className={cn("flex flex-col sm:flex-row p-6 items-start gap-5", isSelectionMode && "pl-14")}>
-                <Avatar className="h-16 w-16 border-2 border-secondary shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl uppercase">
+              <div className={cn("flex flex-col sm:flex-row p-6 items-start gap-6", isSelectionMode && "pl-14")}>
+                <Avatar className="h-16 w-16 border-2 border-secondary shrink-0 shadow-sm">
+                  <AvatarFallback className="bg-primary/5 text-primary font-bold text-xl uppercase">
                     {customer.firstName?.[0]}{customer.lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 
-                <div className="flex-1 w-full space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors text-foreground">
+                <div className="flex-1 w-full space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-xl group-hover:text-primary transition-colors text-foreground leading-tight">
                         {customer.firstName} {customer.lastName}
                       </h3>
-                      <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-                        Customer ID: {customer.id}
-                      </p>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Fingerprint className="h-3.5 w-3.5" />
+                        <span className="text-[10px] font-mono uppercase tracking-widest">ID: {customer.id}</span>
+                      </div>
                     </div>
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100 w-fit shrink-0 font-bold uppercase text-[9px]">
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100 w-fit shrink-0 font-bold uppercase text-[9px] tracking-widest px-2.5 py-1">
                       Active Account
                     </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-primary/60 shrink-0" />
-                      <span className="truncate">{customer.email}</span>
+                  <div className="grid grid-cols-1 gap-2.5 text-sm text-muted-foreground py-1">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-secondary/50 rounded-lg flex items-center justify-center shrink-0">
+                        <Mail className="h-4 w-4 text-primary/60" />
+                      </div>
+                      <span className="truncate font-medium">{customer.email}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-primary/60 shrink-0" />
-                      <span>{customer.phoneNumber}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-secondary/50 rounded-lg flex items-center justify-center shrink-0">
+                        <Phone className="h-4 w-4 text-primary/60" />
+                      </div>
+                      <span className="font-medium">{customer.phoneNumber}</span>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center">
-                        <ShoppingBag className="h-5 w-5 text-primary/60" />
+                  <div className="pt-5 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                    <div className="flex items-center gap-4 bg-primary/[0.03] p-3 rounded-xl border border-primary/5">
+                      <div className="h-11 w-11 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <ShoppingBag className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Total Lifetime Spent</span>
-                        <span className="text-lg font-bold text-primary">${(customer.totalSpent || 0).toLocaleString()}</span>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Lifetime Revenue</span>
+                        <span className="text-xl font-bold text-primary tabular-nums">${(customer.totalSpent || 0).toLocaleString()}</span>
                       </div>
                     </div>
                     {!isSelectionMode && (
-                      <Button variant="outline" size="sm" className="group/btn h-10 px-4 font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm" asChild>
+                      <Button variant="outline" className="group/btn h-11 px-5 font-bold border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm rounded-xl" asChild>
                         <Link href={`/reminders?customerId=${customer.id}`}>
-                          Create Reminder <ChevronRight className="ml-1 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                          Create Reminder <ChevronRight className="ml-1.5 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                         </Link>
                       </Button>
                     )}
@@ -318,66 +324,70 @@ export default function CustomersPage() {
       </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <UserPlus className="h-6 w-6 text-primary" />
               New Customer Profile
             </DialogTitle>
             <DialogDescription>
-              Create a new entry in your CRM. You can later associate sales and reminders with this profile.
+              Create a new entry in your CRM. Email is optional.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-5 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="cust-fname">First Name</Label>
+                <Label htmlFor="cust-fname" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">First Name</Label>
                 <Input 
                   id="cust-fname" 
                   placeholder="e.g. John" 
                   value={newCustomer.firstName} 
+                  className="h-11"
                   onChange={(e) => setNewCustomer({...newCustomer, firstName: e.target.value})}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="cust-lname">Last Name</Label>
+                <Label htmlFor="cust-lname" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Last Name</Label>
                 <Input 
                   id="cust-lname" 
                   placeholder="e.g. Smith" 
                   value={newCustomer.lastName} 
+                  className="h-11"
                   onChange={(e) => setNewCustomer({...newCustomer, lastName: e.target.value})}
                 />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="cust-email">Email Address</Label>
+              <Label htmlFor="cust-email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email Address (Optional)</Label>
               <Input 
                 id="cust-email" 
                 type="email"
                 placeholder="john@example.com" 
                 value={newCustomer.email} 
+                className="h-11"
                 onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="cust-phone">Phone Number</Label>
+              <Label htmlFor="cust-phone" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Phone Number</Label>
               <Input 
                 id="cust-phone" 
                 placeholder="555-0000" 
                 value={newCustomer.phoneNumber} 
+                className="h-11"
                 onChange={(e) => setNewCustomer({...newCustomer, phoneNumber: e.target.value})}
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddCustomer} className="bg-primary hover:bg-primary/90">Create Profile</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)} className="h-11 px-6">Cancel</Button>
+            <Button onClick={handleAddCustomer} className="bg-primary hover:bg-primary/90 h-11 px-8 shadow-lg">Create Profile</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedIds.size} Customer Profiles?</AlertDialogTitle>
             <AlertDialogDescription>
