@@ -174,7 +174,7 @@ export default function CustomersPage() {
   if (!user || !isApproved) return null
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Customer Relationships</h1>
@@ -234,7 +234,7 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
         {filteredCustomers.map((customer) => (
           <Card 
             key={customer.id} 
@@ -252,42 +252,51 @@ export default function CustomersPage() {
               </div>
             )}
             <CardContent className="p-0">
-              <div className={cn("flex p-6 items-start gap-4", isSelectionMode && "pl-12")}>
-                <Avatar className="h-14 w-14 border-2 border-secondary">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+              <div className={cn("flex flex-col sm:flex-row p-6 items-start gap-5", isSelectionMode && "pl-14")}>
+                <Avatar className="h-16 w-16 border-2 border-secondary shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
                     {customer.firstName[0]}{customer.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors text-foreground">{customer.firstName} {customer.lastName}</h3>
-                      <p className="text-xs text-muted-foreground">Customer ID: {customer.id}</p>
+                
+                <div className="flex-1 w-full space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors text-foreground">
+                        {customer.firstName} {customer.lastName}
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
+                        ID: {customer.id}
+                      </p>
                     </div>
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100">Active Account</Badge>
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100 w-fit shrink-0">
+                      Active Account
+                    </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4 text-primary/60" />
-                      <span className="truncate">{customer.email}</span>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary/60 shrink-0" />
+                      <span className="truncate max-w-[180px]">{customer.email}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4 text-primary/60" />
-                      {customer.phoneNumber}
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-primary/60 shrink-0" />
+                      <span>{customer.phoneNumber}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                  <div className="pt-4 border-t flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center">
+                        <ShoppingBag className="h-5 w-5 text-primary/60" />
+                      </div>
                       <div className="flex flex-col">
-                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-tight">Total Lifetime Spent</span>
-                        <span className="text-sm font-bold text-primary">${(customer.totalSpent || 0).toLocaleString()}</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Lifetime Revenue</span>
+                        <span className="text-lg font-bold text-primary">${(customer.totalSpent || 0).toLocaleString()}</span>
                       </div>
                     </div>
                     {!isSelectionMode && (
-                      <Button variant="ghost" size="sm" className="group/btn" asChild>
+                      <Button variant="outline" size="sm" className="group/btn h-10 px-4 font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm" asChild>
                         <Link href={`/reminders?customerId=${customer.id}`}>
                           Create Reminder <ChevronRight className="ml-1 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                         </Link>
@@ -300,8 +309,9 @@ export default function CustomersPage() {
           </Card>
         ))}
         {filteredCustomers.length === 0 && (
-          <div className="col-span-full h-32 flex items-center justify-center text-muted-foreground">
-            No customers found matching your criteria.
+          <div className="col-span-full h-40 flex flex-col items-center justify-center text-muted-foreground bg-card rounded-2xl border-2 border-dashed">
+             <Users className="h-8 w-8 opacity-20 mb-2" />
+             <p className="font-medium">No customers found matching your criteria.</p>
           </div>
         )}
       </div>
