@@ -45,23 +45,23 @@ export default function RemindersPage() {
   const isApproved = profile?.approved === true || isSuperAdmin
   const companyId = profile?.companyId || (isSuperAdmin ? "system" : user?.uid)
 
-  // Fetch Customers
+  // Fetch Customers - limit 1000
   const customersQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
     return query(
       collection(db, "customers"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, companyId, isApproved])
 
-  // Fetch Products
+  // Fetch Products - limit 1000
   const productsQuery = useMemoFirebase(() => {
     if (!db || !companyId || !isApproved) return null
     return query(
       collection(db, "products"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, companyId, isApproved])
 

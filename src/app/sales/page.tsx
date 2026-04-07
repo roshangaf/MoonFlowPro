@@ -87,13 +87,13 @@ export default function SalesPage() {
     }
   }, [user, isUserLoading, router])
 
-  // Fetch Sales - Scoped to companyId with limit to satisfy security rules
+  // Fetch Sales - Scoped to companyId with limit 1000
   const salesQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
     return query(
       collection(db, "sales"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isApproved])
 
@@ -105,7 +105,7 @@ export default function SalesPage() {
     return query(
       collection(db, "customers"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, companyId, isApproved])
   
@@ -115,7 +115,7 @@ export default function SalesPage() {
       collection(db, "products"), 
       where("companyId", "==", companyId), 
       where("lifecycleStatus", "!=", "Sold"),
-      limit(100)
+      limit(1000)
     )
   }, [db, companyId, isApproved])
 

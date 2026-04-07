@@ -139,7 +139,7 @@ export default function InventoryPage() {
     return query(
       collection(db, "products"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isApproved])
 
@@ -150,7 +150,7 @@ export default function InventoryPage() {
     return query(
       collection(db, "customers"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, companyId, isApproved])
 
@@ -161,7 +161,7 @@ export default function InventoryPage() {
     return query(
       collection(db, "products", selectedProductForRepair.id, "repairLogs"),
       orderBy("date", "desc"),
-      limit(50)
+      limit(100)
     )
   }, [db, selectedProductForRepair?.id])
 

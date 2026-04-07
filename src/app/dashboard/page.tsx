@@ -46,7 +46,7 @@ export default function DashboardPage() {
     return query(
       collection(db, "products"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isApproved])
 
@@ -55,7 +55,7 @@ export default function DashboardPage() {
     return query(
       collection(db, "customers"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isApproved])
 
@@ -64,7 +64,7 @@ export default function DashboardPage() {
     return query(
       collection(db, "sales"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isApproved])
 

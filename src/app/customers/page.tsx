@@ -86,11 +86,11 @@ export default function CustomersPage() {
 
   const customersQuery = useMemoFirebase(() => {
     if (!db || !user || !isApproved || !companyId) return null
-    if (isSuperAdmin) return query(collection(db, "customers"), limit(100))
+    if (isSuperAdmin) return query(collection(db, "customers"), limit(1000))
     return query(
       collection(db, "customers"), 
       where("companyId", "==", companyId),
-      limit(100)
+      limit(1000)
     )
   }, [db, user, companyId, isSuperAdmin, isApproved])
 
